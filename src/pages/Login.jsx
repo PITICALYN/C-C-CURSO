@@ -40,7 +40,7 @@ export default function Login() {
             <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem' }}>
                 <div className="text-center" style={{ marginBottom: '2rem' }}>
                     <div style={{ margin: '0 auto 1rem auto', display: 'flex', justifyContent: 'center' }}>
-                        <img src="/assets/logo.jpg" alt="C&C Engenharia Logo" style={{ maxWidth: '180px', height: 'auto', objectFit: 'contain' }} />
+                        <img src="/assets/logo.png" alt="C&C Engenharia Logo" style={{ maxWidth: '180px', height: 'auto', objectFit: 'contain' }} />
                     </div>
                 </div>
 
