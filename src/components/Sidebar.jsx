@@ -9,11 +9,8 @@ export default function Sidebar() {
 
     return (
         <aside className="sidebar">
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
-                    ICC
-                </div>
-                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Super App</h2>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <img src="/assets/logo.jpg" alt="C&C Engenharia Logo" style={{ maxWidth: '140px', height: 'auto', objectFit: 'contain' }} />
             </div>
 
             <nav style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>

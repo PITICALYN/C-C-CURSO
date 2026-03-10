@@ -1,29 +1,83 @@
-import { MOCK_FINANCIAL_SUMMARY, MOCK_ACCOUNTS_PAYABLE, MOCK_PIX_VERIFICATION } from '../lib/mockData'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react'
 
 export default function Dashboard() {
+    const [loading, setLoading] = useState(true)
+    const [metrics, setMetrics] = useState({
+        pendingPix: 0,
+        pendingInvoices: 0,
+        totalRevenue: 0,
+        totalCosts: 0,
+        netProfit: 0
+    })
+    const [payables, setPayables] = useState([])
+    const [pixList, setPixList] = useState([]) // Mock temporary list
+
     const formatMoney = (value) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
     }
 
+    const fetchDashboardData = async () => {
+        setLoading(true)
+        try {
+            // Fetch Payables
+            const { data: costsData } = await supabase.from('financial_costs').select('*').order('date_incurred', { ascending: true })
+            const activePayables = costsData || []
+
+            // Calculate Total Costs from payables
+            const totalCosts = activePayables.reduce((acc, curr) => acc + Number(curr.amount), 0)
+
+            // Calculate Approximate Total Revenue from Students
+            const { count } = await supabase.from('students').select('*', { count: 'exact', head: true })
+            const totalRevenue = (count || 0) * 1500 // Ex: 1500 per student avg
+
+            setMetrics({
+                pendingPix: 2, // Mock notification
+                pendingInvoices: 0,
+                totalRevenue,
+                totalCosts,
+                netProfit: totalRevenue - totalCosts
+            })
+
+            // Filter payables to only show upcoming / pending in dashboard list
+            const pendingCosts = activePayables.filter(p => p.status !== 'pago').slice(0, 5)
+            setPayables(pendingCosts)
+
+            setPixList([
+                { id: 1, student: 'João Guilherme Silva', amount: 1500, date: '2026-10-10' },
+                { id: 2, student: 'Maria Oliveira Gomes', amount: 1500, date: '2026-10-15' }
+            ])
+
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchDashboardData()
+    }, [])
+
     return (
         <div className="animate-fade-in">
             {/* Top Banner Alerts */}
-            {(MOCK_FINANCIAL_SUMMARY.pendingPix > 0 || MOCK_FINANCIAL_SUMMARY.pendingInvoices > 0) && (
+            {(metrics.pendingPix > 0 || metrics.pendingInvoices > 0) && (
                 <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                    {MOCK_FINANCIAL_SUMMARY.pendingPix > 0 && (
+                    {metrics.pendingPix > 0 && (
                         <div style={{ flex: 1, backgroundColor: '#FEF3C7', border: '1px solid #F59E0B', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#92400E' }}>
                             <AlertCircle size={24} />
                             <div>
-                                <strong>Atenção:</strong> Há {MOCK_FINANCIAL_SUMMARY.pendingPix} pagamentos de PIX Parcelado aguardando checagem na conta.
+                                <strong>Atenção:</strong> Há {metrics.pendingPix} pagamentos de PIX Parcelado aguardando checagem na conta.
                             </div>
                         </div>
                     )}
-                    {MOCK_FINANCIAL_SUMMARY.pendingInvoices > 0 && (
+                    {metrics.pendingInvoices > 0 && (
                         <div style={{ flex: 1, backgroundColor: '#DBEAFE', border: '1px solid #3B82F6', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#1E40AF' }}>
                             <AlertCircle size={24} />
                             <div>
-                                <strong>Notas Fiscais:</strong> {MOCK_FINANCIAL_SUMMARY.pendingInvoices} notas pendentes de emissão.
+                                <strong>Notas Fiscais:</strong> {metrics.pendingInvoices} notas pendentes de emissão.
                             </div>
                         </div>
                     )}
@@ -34,14 +88,14 @@ export default function Dashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
                 <div className="card">
                     <h3 className="text-secondary" style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                        Lucro Líquido (Real + Previsto)
+                        Lucro Líquido Parcial (Real + Previsto)
                     </h3>
                     <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--success)' }}>
-                        {formatMoney(MOCK_FINANCIAL_SUMMARY.netProfit)}
+                        {formatMoney(metrics.netProfit)}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        <span>Receita Bruta: {formatMoney(MOCK_FINANCIAL_SUMMARY.totalRevenue)}</span>
-                        <span style={{ color: 'var(--danger)' }}>Custos: {formatMoney(MOCK_FINANCIAL_SUMMARY.totalCosts)}</span>
+                        <span>Receita Bruta: {formatMoney(metrics.totalRevenue)}</span>
+                        <span style={{ color: 'var(--danger)' }}>Custos Locais: {formatMoney(metrics.totalCosts)}</span>
                     </div>
                 </div>
             </div>
@@ -50,29 +104,27 @@ export default function Dashboard() {
                 {/* Contas a Pagar / Rateio */}
                 <div className="card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1.125rem' }}>Contas a Pagar & Rateios</h3>
-                        <button className="btn btn-secondary" style={{ fontSize: '0.875rem', padding: '0.25rem 0.75rem' }}>Ver todas</button>
+                        <h3 style={{ fontSize: '1.125rem' }}>Contas a Pagar (Próximas)</h3>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {MOCK_ACCOUNTS_PAYABLE.map(conta => (
-                            <div key={conta.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                                <div>
-                                    <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{conta.description}</p>
-                                    <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Vence em: {new Date(conta.dueDate).toLocaleDateString('pt-BR')}</p>
+                    {loading ? <p className="text-muted">Carregando...</p> : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {payables.map(conta => (
+                                <div key={conta.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                                    <div>
+                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{conta.description}</p>
+                                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Vence em: {conta.date_incurred ? new Date(conta.date_incurred + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem data'}</p>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <p style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: '0.25rem' }}>- {formatMoney(conta.amount)}</p>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.5rem', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#92400E' }}>
+                                            PENDENTE
+                                        </span>
+                                    </div>
                                 </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <p style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: '0.25rem' }}>- {formatMoney(conta.amount)}</p>
-                                    <span style={{
-                                        fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.5rem', borderRadius: '4px',
-                                        backgroundColor: conta.status === 'Pago' ? '#D1FAE5' : '#FEF3C7',
-                                        color: conta.status === 'Pago' ? '#065F46' : '#92400E'
-                                    }}>
-                                        {conta.status}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                            {payables.length === 0 && <p className="text-muted" style={{ textAlign: 'center' }}>Nenhuma despesa pendente registrada.</p>}
+                        </div>
+                    )}
                 </div>
 
                 {/* PIX Verification */}
@@ -81,7 +133,7 @@ export default function Dashboard() {
                         <h3 style={{ fontSize: '1.125rem' }}>Verificação de PIX Parcelado</h3>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {MOCK_PIX_VERIFICATION.map(pix => (
+                        {pixList.map(pix => (
                             <div key={pix.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
                                 <div>
                                     <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{pix.student}</p>
@@ -100,9 +152,6 @@ export default function Dashboard() {
                                 </div>
                             </div>
                         ))}
-                        {MOCK_PIX_VERIFICATION.length === 0 && (
-                            <p className="text-muted" style={{ textAlign: 'center', padding: '2rem 0' }}>Nenhum PIX aguardando verificação.</p>
-                        )}
                     </div>
                 </div>
             </div>

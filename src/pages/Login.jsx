@@ -39,16 +39,9 @@ export default function Login() {
         }}>
             <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem' }}>
                 <div className="text-center" style={{ marginBottom: '2rem' }}>
-                    <div style={{
-                        width: '64px', height: '64px', borderRadius: '16px',
-                        backgroundColor: 'var(--primary)', color: 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '1.5rem', fontWeight: 'bold', margin: '0 auto 1rem auto'
-                    }}>
-                        ICC
+                    <div style={{ margin: '0 auto 1rem auto', display: 'flex', justifyContent: 'center' }}>
+                        <img src="/assets/logo.jpg" alt="C&C Engenharia Logo" style={{ maxWidth: '180px', height: 'auto', objectFit: 'contain' }} />
                     </div>
-                    <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Bem-vindo de volta</h1>
-                    <p className="text-muted">Faça login para gerenciar o sistema</p>
                 </div>
 
                 {error && (
