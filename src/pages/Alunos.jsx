@@ -15,6 +15,7 @@ export default function Alunos() {
         full_name: '', cpf: '', rg: '', birth_date: '', birth_place: '', marital_status: 'Solteiro(a)',
         pai: '', mae: '', education_level: 'Ensino Médio Completo', email: '', phone: '',
         cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: '',
+        how_knew: 'Amigo', how_knew_other: '',
         base_value: '', discount_value: '', manual_signed: false
     })
 
@@ -111,6 +112,8 @@ export default function Alunos() {
             phone: formData.phone,
             education_level: formData.education_level,
             turma_id: formData.turma_id ? formData.turma_id : null,
+            how_knew: formData.how_knew,
+            how_knew_other: formData.how_knew === 'Outro' ? formData.how_knew_other : null,
             parents_names: { pai: formData.pai, mae: formData.mae },
             address: { cep: formData.cep, rua: formData.rua, numero: formData.numero, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado },
             base_value: formData.base_value ? parseFloat(formData.base_value) : 0,
@@ -236,6 +239,27 @@ export default function Alunos() {
                     <div className="form-group"><label className="form-label">CEP</label><input type="text" className="form-control" name="cep" value={formData.cep} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Rua/Logradouro</label><input type="text" className="form-control" name="rua" value={formData.rua} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Nº</label><input type="text" className="form-control" name="numero" value={formData.numero} onChange={handleFormChange} /></div>
+                </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>3. Pesquisa e Marketing</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) 2fr', gap: '1.5rem', alignItems: 'end' }}>
+                    <div className="form-group">
+                        <label className="form-label">Como conheceu o curso?</label>
+                        <select className="form-control" name="how_knew" value={formData.how_knew} onChange={handleFormChange}>
+                            <option value="Amigo">Indicação de Amigo / Ex-Aluno</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Outro">Outro Canal/Forma</option>
+                        </select>
+                    </div>
+                    {formData.how_knew === 'Outro' && (
+                        <div className="form-group animate-fade-in">
+                            <label className="form-label">Qual outro canal? (Especifique)</label>
+                            <input type="text" className="form-control" name="how_knew_other" value={formData.how_knew_other} onChange={handleFormChange} placeholder="Ex: Panfleto, Outdoor, Rádio..." />
+                        </div>
+                    )}
                 </div>
             </div>
 

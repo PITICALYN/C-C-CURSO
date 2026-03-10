@@ -19,6 +19,7 @@ export default function Dashboard() {
     const [courseRanking, setCourseRanking] = useState({ month: [], year: [] })
     const [monthlySales, setMonthlySales] = useState([])
     const [classOccupancy, setClassOccupancy] = useState([])
+    const [marketingSource, setMarketingSource] = useState([])
 
     // Performance de Prazos
     const [classDelays, setClassDelays] = useState({ delayed: [], onTime: 0, totalStarted: 0 })
@@ -42,7 +43,7 @@ export default function Dashboard() {
             const activePayables = costsData || []
 
             // Analytics Extraction (Students & Classes)
-            const { data: studentsData } = await supabase.from('students').select('created_at, turma_id, classes(name, course_name)')
+            const { data: studentsData } = await supabase.from('students').select('created_at, how_knew, how_knew_other, turma_id, classes(name, course_name)')
 
             if (studentsData) {
                 const now = new Date()
@@ -80,6 +81,14 @@ export default function Dashboard() {
                     classCounts[tName] = (classCounts[tName] || 0) + 1
                 })
 
+                // Track Marketing Effectiveness (All Time or specific period, let's do All Time for broader stats)
+                let marketingCounts = {}
+                studentsData.forEach(st => {
+                    const baseSource = st.how_knew || 'Não Informado'
+                    const source = baseSource === 'Outro' && st.how_knew_other ? `Outro: ${st.how_knew_other}` : baseSource
+                    marketingCounts[source] = (marketingCounts[source] || 0) + 1
+                })
+
                 // Sort Arrays
                 const sortObject = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }))
 
@@ -90,6 +99,7 @@ export default function Dashboard() {
 
                 setMonthlySales(sortObject(salesByMonth))
                 setClassOccupancy(sortObject(classCounts).slice(0, 5)) // Top 5 turmas mais cheias
+                setMarketingSource(sortObject(marketingCounts))
             }
 
             // Performance de Prazos (Analytics de Turmas)
@@ -281,6 +291,36 @@ export default function Dashboard() {
                                         </div>
                                     )) : <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Sensacional! Todas as turmas iniciaram no prazo.</span>}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Eficácia de Campanhas de Marketing */}
+                        <div className="card" style={{ backgroundColor: '#F8FAFC' }}>
+                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={18} className="text-secondary" /> Origem / Captação de Alunos</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {marketingSource.map((s, i) => {
+                                    const total = marketingSource.reduce((acc, curr) => acc + curr.count, 0)
+                                    const percent = total > 0 ? Math.round((s.count / total) * 100) : 0
+
+                                    // Set icon colors conditionally based on source type
+                                    let barColor = 'var(--primary)'
+                                    if (s.name.includes('Amigo')) barColor = '#059669' // Green
+                                    if (s.name.includes('Instagram')) barColor = '#DB2777' // Pink
+                                    if (s.name.includes('Facebook')) barColor = '#2563EB' // Blue
+
+                                    return (
+                                        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.875rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 500 }}>
+                                                <span>{s.name}</span>
+                                                <span>{s.count} lead(s) • {percent}%</span>
+                                            </div>
+                                            <div style={{ width: '100%', backgroundColor: 'var(--border-color)', height: '6px', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${percent}%`, backgroundColor: barColor, height: '100%' }}></div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                {marketingSource.length === 0 && <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Métricas zeradas. Dados insuficientes.</span>}
                             </div>
                         </div>
 
