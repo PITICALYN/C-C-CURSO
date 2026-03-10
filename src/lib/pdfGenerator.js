@@ -19,6 +19,8 @@ export const generateDocument = (type, student) => {
         generateMatriculaPDF(doc, student)
     } else if (type === 'certificado') {
         generateCertificatePDF(doc, student)
+    } else if (type === 'melhorias') {
+        generateImprovementPDF(doc, student)
     }
 
     doc.save(`${type}_${student.name.replace(/\s+/g, '_')}.pdf`)
@@ -184,4 +186,31 @@ function generateCertificatePDF(doc, student) {
     if (!isReprovado) {
         doc.text('Assinatura Digital de Responsabilidade Técnica (RT)', 148, 186, { align: 'center' })
     }
+}
+
+function generateImprovementPDF(doc, student) {
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('RELATÓRIO DE DESEMPENHO E PONTOS DE MELHORIA', 105, 30, { align: 'center' })
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+
+    const introText = `Aluno(a): ${student.name}\nCPF: ${student.cpf}\nTurma: ${student.class}\nData de Emissão: ${new Date().toLocaleDateString('pt-BR')}`
+    doc.text(introText, 20, 50)
+
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Observações e Apontamentos do Fichário do Instrutor:', 20, 80)
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+
+    const obsText = student.originalData?.improvements || 'Nenhum ponto de melhoria técnica ou observação de conduta foi registrado pelo instrutor no diário de classe durante o treinamento.'
+
+    const lines = doc.splitTextToSize(obsText, 170)
+    doc.text(lines, 20, 95)
+
+    doc.text('_________________________________', 105, 230, { align: 'center' })
+    doc.text('Assinatura do Instrutor / Especialista', 105, 240, { align: 'center' })
 }

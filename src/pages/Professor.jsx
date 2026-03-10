@@ -15,6 +15,7 @@ export default function Professor() {
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0])
     const [recordContent, setRecordContent] = useState('')
     const [attendance, setAttendance] = useState({}) // { studentId: 'presente' | 'falta' }
+    const [improvements, setImprovements] = useState({}) // { studentId: 'texto...' }
 
     const fetchClasses = async () => {
         setLoading(true)
@@ -37,14 +38,17 @@ export default function Professor() {
 
             setClassStudents(data || [])
 
-            // Initialize default attendance (all present by default to save time)
+            // Initialize default attendance (all present by default to save time) and improvements
             const initialAttendance = {}
+            const initialImprovements = {}
             if (data) {
                 data.forEach(s => {
                     initialAttendance[s.id] = 'presente'
+                    initialImprovements[s.id] = s.improvements || ''
                 })
             }
             setAttendance(initialAttendance)
+            setImprovements(initialImprovements)
         } catch (error) {
             console.error('Error fetching students:', error)
         } finally {
@@ -66,6 +70,10 @@ export default function Professor() {
         setAttendance(prev => ({ ...prev, [studentId]: status }))
     }
 
+    const handleImprovementChange = (studentId, value) => {
+        setImprovements(prev => ({ ...prev, [studentId]: value }))
+    }
+
     const handleSaveDiario = async () => {
         if (!recordContent) {
             alert('Por favor, descreva o conteúdo lecionado.')
@@ -73,8 +81,15 @@ export default function Professor() {
         }
 
         // 1. In a complete implementation, this would save to a 'class_records' and 'attendance' table in Supabase.
-        // For now, we simulate success as requested.
-        alert('Fichário Diário e Presença Salvos com Sucesso (Regra de Coordenador Ativa)!')
+        // We simulate saving the improvements back to the DB for the students
+        for (const studentId of Object.keys(improvements)) {
+            const text = improvements[studentId];
+            if (text) {
+                await supabase.from('students').update({ improvements: text }).eq('id', studentId);
+            }
+        }
+
+        alert('Fichário Diário, Presença e Pontos de Melhoria Salvos com Sucesso!')
 
         // Return to class list
         setActiveTab('minhasTurmas')
@@ -156,6 +171,7 @@ export default function Professor() {
                                             <th style={{ padding: '0.75rem' }}>Aluno Matriculado</th>
                                             <th style={{ padding: '0.75rem', textAlign: 'center', color: '#065F46' }}>Presente</th>
                                             <th style={{ padding: '0.75rem', textAlign: 'center', color: '#991B1B' }}>Falta</th>
+                                            <th style={{ padding: '0.75rem' }}>Pontos de Melhoria (Acumulativo)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -172,9 +188,18 @@ export default function Professor() {
                                                         checked={attendance[student.id] === 'falta'}
                                                         onChange={() => handleAttendanceChange(student.id, 'falta')} />
                                                 </td>
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <textarea
+                                                        className="form-control"
+                                                        rows="1"
+                                                        placeholder="Ex: Prestar atenção na solda X..."
+                                                        value={improvements[student.id] || ''}
+                                                        onChange={(e) => handleImprovementChange(student.id, e.target.value)}
+                                                    />
+                                                </td>
                                             </tr>
                                         ))}
-                                        {classStudents.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center', padding: '1rem' }}>Nenhum aluno cadastrado nesta turma.</td></tr>}
+                                        {classStudents.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', padding: '1rem' }}>Nenhum aluno cadastrado nesta turma.</td></tr>}
                                     </tbody>
                                 </table>
                             </div>

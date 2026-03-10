@@ -388,11 +388,12 @@ export default function Alunos() {
                         <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('inscrito', student)}><FileBadge size={18} />Declaração de Inscrito</button>
                         <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('termino', student)}><FileBadge size={18} />Declaração de Término</button>
                         <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('contrato', student)}><FileText size={18} />Contrato (4 Págs)</button>
-                        <button className="btn btn-primary" style={{ justifyContent: 'flex-start', opacity: student.originalData.manual_signed ? 1 : 0.5 }} disabled={!student.originalData.manual_signed} onClick={() => {
+                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE' }} onClick={() => generateDocument('melhorias', student)}><FileText size={18} />Pontos de Melhorias</button>
+                        <button className="btn btn-primary" style={{ justifyContent: 'flex-start', opacity: student.originalData.manual_signed ? 1 : 0.5, gridColumn: 'span 3' }} disabled={!student.originalData.manual_signed} onClick={() => {
                             // Injetando o final_status falso na memória apenas para o print
                             student.originalData.academic_records = [{ final_status: isReprovado ? 'REPROVADO' : 'APROVADO' }];
                             generateDocument('certificado', student)
-                        }}><Award size={18} />Certificado / Atestado</button>
+                        }}><Award size={18} />Emitir Certificado / Atestado (Oficial)</button>
                     </div>
                 </div>
             </div>
