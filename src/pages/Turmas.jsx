@@ -26,7 +26,7 @@ export default function Turmas() {
             const { data, error } = await supabase
                 .from('classes')
                 .select(`
-                    id, name, course_name, start_date, predicted_end_date, schedule, duration,
+                    id, name, course_name, start_date, actual_start_date, predicted_end_date, schedule, duration,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -38,6 +38,7 @@ export default function Turmas() {
                 name: c.name,
                 course: c.course_name,
                 startDate: c.start_date,
+                actualStartDate: c.actual_start_date,
                 predictedEndDate: c.predicted_end_date,
                 schedule: c.schedule,
                 duration: c.duration,
@@ -88,6 +89,22 @@ export default function Turmas() {
         }
     }
 
+    const handleStartClass = async (classId, className) => {
+        const confirmedDate = window.prompt(`Registrar Data Real de Início para a Turma: ${className}\n\nDeixe em branco para usar a data de hoje ou preencha no formato YYYY-MM-DD:`, new Date().toISOString().split('T')[0])
+
+        if (confirmedDate !== null) {
+            const dateToSave = confirmedDate || new Date().toISOString().split('T')[0]
+            const { error } = await supabase.from('classes').update({ actual_start_date: dateToSave }).eq('id', classId)
+
+            if (error) {
+                alert('Erro ao iniciar turma: ' + error.message)
+            } else {
+                alert('Marcada como Em Andamento com sucesso!')
+                fetchClasses()
+            }
+        }
+    }
+
     const renderList = () => (
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -121,26 +138,40 @@ export default function Turmas() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <CalendarIcon size={16} className="text-primary" />
                                     <div>
-                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Início</p>
-                                        <p className="text-muted">{turma.startDate ? new Date(turma.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</p>
+                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Início (Previsto vs Real)</p>
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                                            <p className="text-muted" style={{ textDecoration: turma.actualStartDate ? 'line-through' : 'none' }}>
+                                                {turma.startDate ? new Date(turma.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                            </p>
+                                            {turma.actualStartDate && (
+                                                <span style={{ color: '#065F46', fontWeight: 600 }}>{new Date(turma.actualStartDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <Clock size={16} className="text-warning" />
                                     <div>
-                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Término</p>
+                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Término (Previsão)</p>
                                         <p className="text-muted">{turma.predictedEndDate ? new Date(turma.predictedEndDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
-                                    <Users size={16} /> Grade de Alunos
-                                </button>
-                                <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
-                                    <LogIn size={16} /> Diário e Frequência
-                                </button>
+                                {!turma.actualStartDate && (
+                                    <button className="btn" style={{ justifyContent: 'center', backgroundColor: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0' }} onClick={() => handleStartClass(turma.id, turma.name)}>
+                                        <CalendarIcon size={16} /> Marcar Início Oficial
+                                    </button>
+                                )}
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                                        <Users size={16} /> Alunos
+                                    </button>
+                                    <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                                        <LogIn size={16} /> Fichário
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}

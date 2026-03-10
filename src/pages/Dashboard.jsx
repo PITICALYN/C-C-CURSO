@@ -20,6 +20,9 @@ export default function Dashboard() {
     const [monthlySales, setMonthlySales] = useState([])
     const [classOccupancy, setClassOccupancy] = useState([])
 
+    // Performance de Prazos
+    const [classDelays, setClassDelays] = useState({ delayed: [], onTime: 0, totalStarted: 0 })
+
     const formatMoney = (value) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
     }
@@ -87,6 +90,36 @@ export default function Dashboard() {
 
                 setMonthlySales(sortObject(salesByMonth))
                 setClassOccupancy(sortObject(classCounts).slice(0, 5)) // Top 5 turmas mais cheias
+            }
+
+            // Performance de Prazos (Analytics de Turmas)
+            const { data: allClasses } = await supabase.from('classes').select('name, start_date, actual_start_date')
+            if (allClasses) {
+                const startedClasses = allClasses.filter(c => c.actual_start_date && c.start_date)
+                const delayed = []
+                let onTimeCount = 0
+
+                startedClasses.forEach(c => {
+                    const previsto = new Date(c.start_date + 'T00:00:00')
+                    const real = new Date(c.actual_start_date + 'T00:00:00')
+                    const diffTime = real - previsto
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+                    if (diffDays > 0) {
+                        delayed.push({ name: c.name, days: diffDays })
+                    } else {
+                        onTimeCount++
+                    }
+                })
+
+                // Ordenar do maior atraso pro menor
+                delayed.sort((a, b) => b.days - a.days)
+
+                setClassDelays({
+                    delayed,
+                    onTime: onTimeCount,
+                    totalStarted: startedClasses.length
+                })
             }
 
             // Calculate Approximate Total Revenue from Students
@@ -222,6 +255,32 @@ export default function Dashboard() {
                                     </div>
                                 ))}
                                 {classOccupancy.length === 0 && <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Nenhuma turma em aberto encontrada.</span>}
+                            </div>
+                        </div>
+
+                        {/* Performance de Início das Turmas (Atrasos) */}
+                        <div className="card" style={{ backgroundColor: '#F8FAFC' }}>
+                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Clock size={18} className="text-danger" /> Atrasos de Lançamento (SLA)</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <div style={{ flex: 1, backgroundColor: '#D1FAE5', border: '1px solid #A7F3D0', padding: '0.75rem', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#065F46' }}>{classDelays.totalStarted > 0 ? Math.round((classDelays.onTime / classDelays.totalStarted) * 100) : 0}%</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#065F46', textTransform: 'uppercase' }}>No Prazo Exato</div>
+                                    </div>
+                                    <div style={{ flex: 1, backgroundColor: '#FEE2E2', border: '1px solid #FECACA', padding: '0.75rem', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#991B1B' }}>{classDelays.delayed.length}</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#991B1B', textTransform: 'uppercase' }}>Turmas Atrasadas</div>
+                                    </div>
+                                </div>
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                                    <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Histórico de Turmas Defasadas</h4>
+                                    {classDelays.delayed.length > 0 ? classDelays.delayed.map((c, i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', padding: '0.25rem 0' }}>
+                                            <span style={{ fontWeight: 500 }}>{c.name}</span>
+                                            <strong style={{ color: 'var(--danger)' }}>+{c.days} dias de atraso</strong>
+                                        </div>
+                                    )) : <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Sensacional! Todas as turmas iniciaram no prazo.</span>}
+                                </div>
                             </div>
                         </div>
 

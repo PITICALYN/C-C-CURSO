@@ -1,8 +1,22 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, GraduationCap, DollarSign, LogOut, BookOpen, ShieldCheck, Settings } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Sidebar() {
+    const [userRole, setUserRole] = useState(null)
+
+    useEffect(() => {
+        const fetchRole = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+                if (profile) setUserRole(profile.role)
+            }
+        }
+        fetchRole()
+    }, [])
+
     const handleLogout = async () => {
         await supabase.auth.signOut()
     }
@@ -53,18 +67,20 @@ export default function Sidebar() {
                     Turmas
                 </NavLink>
 
-                <NavLink
-                    to="/financeiro"
-                    style={({ isActive }) => ({
-                        display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                        borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                        backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                        fontWeight: isActive ? '600' : '500'
-                    })}
-                >
-                    <DollarSign size={20} />
-                    Financeiro
-                </NavLink>
+                {(userRole === 'admin' || userRole === 'coordenador') && (
+                    <NavLink
+                        to="/financeiro"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <DollarSign size={20} />
+                        Financeiro
+                    </NavLink>
+                )}
 
                 <NavLink
                     to="/professor"
