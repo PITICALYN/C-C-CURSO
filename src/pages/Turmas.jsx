@@ -8,8 +8,16 @@ export default function Turmas() {
     const [view, setView] = useState('list') // list | add
 
     const [formData, setFormData] = useState({
-        name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: ''
+        name: '',
+        course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
+        start_date: '', predicted_end_date: '', schedule: '', duration: ''
     })
+
+    const generateNextClassName = (existingClasses) => {
+        const yearSuffix = new Date().getFullYear().toString().slice(-2) // Ex: "26" p/ 2026
+        const nextNumber = (existingClasses.length + 1).toString().padStart(2, '0') // Ex: "01", "02"
+        return `T${nextNumber}/${yearSuffix}`
+    }
 
     const fetchClasses = async () => {
         setLoading(true)
@@ -35,7 +43,10 @@ export default function Turmas() {
                 duration: c.duration,
                 studentsCount: c.students[0]?.count || 0
             }))
+
+            // Reorganizando e Forçando state default p/ Form
             setClasses(formatted)
+            setFormData(prev => ({ ...prev, name: generateNextClassName(formatted) }))
         } catch (error) {
             console.error('Error fetching classes:', error)
         } finally {
@@ -157,8 +168,22 @@ export default function Turmas() {
             <div className="card">
                 <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Dados Básicos</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div className="form-group"><label className="form-label">Nome da Turma (Ex: T1 15/12)</label><input type="text" className="form-control" name="name" value={formData.name} onChange={handleFormChange} /></div>
-                    <div className="form-group"><label className="form-label">Curso (Ex: Inspetor de Soldagem)</label><input type="text" className="form-control" name="course_name" value={formData.course_name} onChange={handleFormChange} /></div>
+                    <div className="form-group">
+                        <label className="form-label">Nome da Turma (Ex: T01/26)</label>
+                        <input type="text" className="form-control" name="name" value={formData.name} onChange={handleFormChange} />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Gerado automaticamente pelo sistema, mas pode ser alterado se necessário.</span>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Curso</label>
+                        <select className="form-control" name="course_name" value={formData.course_name} onChange={handleFormChange}>
+                            <option value="Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)">Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)</option>
+                            <option value="Controle Dimensional – Topografia (CD-TO)">Controle Dimensional – Topografia (CD-TO)</option>
+                            <option value="Controle Dimensional - Mecânica- (CD-CM)">Controle Dimensional - Mecânica- (CD-CM)</option>
+                            <option value="TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)">TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)</option>
+                            <option value="Treinamento Dimensional – Topografia (CD-TO)">Treinamento Dimensional – Topografia (CD-TO)</option>
+                            <option value="Treinamento Dimensional - Mecânica- (CD-CM)">Treinamento Dimensional - Mecânica- (CD-CM)</option>
+                        </select>
+                    </div>
                     <div className="form-group"><label className="form-label">Data de Início Programado</label><input type="date" className="form-control" name="start_date" value={formData.start_date} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Previsão de Término</label><input type="date" className="form-control" name="predicted_end_date" value={formData.predicted_end_date} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Horários Base</label><input type="text" className="form-control" name="schedule" value={formData.schedule} onChange={handleFormChange} placeholder="Ex: Seg a Sex 18h às 22h" /></div>
