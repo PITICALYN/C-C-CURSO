@@ -94,12 +94,26 @@ export default function Sidebar() {
 
                 <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                     <NavLink
-                        to="/config"
+                        to="/equipe"
                         style={({ isActive }) => ({
                             display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
                             borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
                             backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
                             fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <ShieldCheck size={20} />
+                        Equipe (Auth)
+                    </NavLink>
+
+                    <NavLink
+                        to="/config"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500',
+                            marginTop: '0.5rem'
                         })}
                     >
                         <Settings size={20} />

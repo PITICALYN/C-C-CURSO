@@ -9,6 +9,7 @@ import Financeiro from './pages/Financeiro'
 import Professor from './pages/Professor'
 import Auditoria from './pages/Auditoria'
 import ConfigDocs from './pages/ConfigDocs'
+import Equipe from './pages/Equipe'
 
 const PrivateRoute = ({ children }) => {
   const { session } = useAuth()
@@ -33,6 +34,7 @@ function App() {
             <Route path="financeiro" element={<Financeiro />} />
             <Route path="professor" element={<Professor />} />
             <Route path="auditoria" element={<Auditoria />} />
+            <Route path="equipe" element={<Equipe />} />
             <Route path="config" element={<ConfigDocs />} />
           </Route>
         </Routes>

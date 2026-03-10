@@ -81,64 +81,108 @@ export default function Financeiro() {
         </div>
     )
 
-    const renderPixTab = () => (
-        <div className="card animate-fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1.125rem' }}>Validação de PIX Recebidos Constantes em Contrato</h3>
-                <button className="btn btn-secondary"><Filter size={16} /> Filtrar por Turma</button>
-            </div>
-            {loading ? <p>Carregando BD...</p> : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                            <th style={{ padding: '1rem' }}>Aluno</th>
-                            <th style={{ padding: '1rem' }}>Valor Declarado</th>
-                            <th style={{ padding: '1rem' }}>Data do Pagamento</th>
-                            <th style={{ padding: '1rem' }}>Status</th>
-                            <th style={{ padding: '1rem', textAlign: 'right' }}>Ação (Aprovar na Conta)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {transactions.pix.map(pix => (
-                            <tr key={pix.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                <td style={{ padding: '1rem', fontWeight: 500 }}>{pix.student}</td>
-                                <td style={{ padding: '1rem', fontWeight: 600 }}>{formatMoney(pix.amount)}</td>
-                                <td style={{ padding: '1rem' }}>{new Date(pix.date).toLocaleDateString('pt-BR')}</td>
-                                <td style={{ padding: '1rem' }}>
-                                    <span style={{ backgroundColor: '#FEF3C7', color: '#92400E', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>{pix.status}</span>
-                                </td>
-                                <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                    <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }} onClick={() => alert('Parabéns! PIX compensado com sucesso. Parcela do aluno baixada no DB.')}><CheckCircle size={16} /> Dar Baixa</button>
-                                </td>
+    const renderPixTab = () => {
+        // Função utilitária para checar Feriados/Fim de Semana (Alerta PIX Inteligente)
+        const checkPixAlert = (dateString, status) => {
+            if (status === 'pago') return null
+            const dueDate = new Date(dateString + 'T00:00:00')
+            const today = new Date()
+
+            // Zerando horas para comparar datas limpas
+            today.setHours(0, 0, 0, 0)
+            dueDate.setHours(0, 0, 0, 0)
+
+            const diffTime = dueDate - today
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+            // Lógica D-1, Dia D ou D+1
+            const isWeekend = dueDate.getDay() === 0 || dueDate.getDay() === 6 // 0=Dom, 6=Sáb
+
+            if (diffDays === 0) {
+                return { type: 'danger', msg: `VENCE HOJE! Mande conferir a conta corrente.` }
+            } else if (diffDays === 1) {
+                return { type: 'warning', msg: 'Vence Amanhã (D-1).' }
+            } else if (diffDays === -1) {
+                return { type: 'danger', msg: 'VENCEU ONTEM (D+1). Cobrar aluno!' }
+            } else if (isWeekend && diffDays > 0 && diffDays <= 2) {
+                return { type: 'warning', msg: 'Atenção: Vence no Final de Semana. Compensação será no Próximo Dia Útil!' }
+            } else if (diffDays < 0) {
+                return { type: 'danger', msg: `Atrasado há ${Math.abs(diffDays)} dias.` }
+            }
+            return null
+        }
+
+        return (
+            <div className="card animate-fade-in">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.125rem' }}>Validação de PIX Recebidos Constantes em Contrato</h3>
+                    <button className="btn btn-secondary"><Filter size={16} /> Filtrar por Turma</button>
+                </div>
+                {loading ? <p>Carregando BD...</p> : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                <th style={{ padding: '1rem' }}>Aluno</th>
+                                <th style={{ padding: '1rem' }}>Valor Declarado</th>
+                                <th style={{ padding: '1rem' }}>Data do Pagamento</th>
+                                <th style={{ padding: '1rem' }}>Alertas do Sistema</th>
+                                <th style={{ padding: '1rem', textAlign: 'right' }}>Ação (Aprovar na Conta)</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </div>
-    )
+                        </thead>
+                        <tbody>
+                            {transactions.pix.map(pix => {
+                                const alertData = checkPixAlert(pix.date, pix.status)
+                                return (
+                                    <tr key={pix.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{pix.student}</td>
+                                        <td style={{ padding: '1rem', fontWeight: 600 }}>{formatMoney(pix.amount)}</td>
+                                        <td style={{ padding: '1rem' }}>{new Date(pix.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                        <td style={{ padding: '1rem' }}>
+                                            {alertData ? (
+                                                <span style={{ backgroundColor: alertData.type === 'danger' ? '#FEE2E2' : '#FEF3C7', color: alertData.type === 'danger' ? '#991B1B' : '#92400E', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    {alertData.type === 'danger' ? '🚨' : '⚠️'} {alertData.msg}
+                                                </span>
+                                            ) : (
+                                                <span style={{ backgroundColor: '#F3F4F6', color: '#4B5563', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Aguardando Prazo</span>
+                                            )}
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                            <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }} onClick={() => alert('Parabéns! PIX compensado com sucesso. Parcela do aluno baixada no DB.')}><CheckCircle size={16} /> Dar Baixa</button>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        )
+    }
 
     const renderNftTab = () => (
         <div className="card animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <div><h3 style={{ fontSize: '1.125rem', marginBottom: '0.25rem' }}>Registro de Notas Fiscais</h3><p className="text-muted" style={{ fontSize: '0.875rem' }}>Registro interno manual de emissões.</p></div>
+                <div><h3 style={{ fontSize: '1.125rem', marginBottom: '0.25rem' }}>Registro de Notas Fiscais</h3><p className="text-muted" style={{ fontSize: '0.875rem' }}>Rastreamento integral de emissões tributárias.</p></div>
                 <button className="btn btn-primary" onClick={() => setShowNewNfForm(!showNewNfForm)}><FilePlus size={16} /> Emitir Nova NF</button>
             </div>
 
             {showNewNfForm && (
                 <div style={{ padding: '1.5rem', backgroundColor: 'var(--bg-color)', marginBottom: '1.5rem', borderRadius: 'var(--radius-md)' }}>
-                    <h4 style={{ marginBottom: '1rem' }}>Registrar Faturamento</h4>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1 }}><label className="form-label">Sacado (Aluno)</label><input type="text" className="form-control" /></div>
-                        <div style={{ flex: 1 }}><label className="form-label">Valor R$</label><input type="number" className="form-control" /></div>
-                        <div><button className="btn btn-primary" onClick={() => { alert('NF Registrada no BD!'); setShowNewNfForm(false) }}>Salvar Registro</button></div>
+                    <h4 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Cadastrar NF Emitida manualmente</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', alignItems: 'flex-end' }}>
+                        <div><label className="form-label">CPF Aluno</label><input type="text" className="form-control" placeholder="000.000.000-00" /></div>
+                        <div><label className="form-label">Nome Sacado</label><input type="text" className="form-control" /></div>
+                        <div><label className="form-label">Turma Vinculada</label><input type="text" className="form-control" /></div>
+                        <div><label className="form-label">Valor (R$)</label><input type="number" step="0.01" className="form-control" /></div>
+                        <div><label className="form-label">Número da NF</label><input type="text" className="form-control" placeholder="Ex: 2026154" /></div>
+                        <div style={{ gridColumn: 'span 5', textAlign: 'right', marginTop: '1rem' }}><button className="btn btn-primary" onClick={() => { alert('NF Registrada e Amarrada ao CPF no Banco de Dados!'); setShowNewNfForm(false) }}>Salvar Registro C&C</button></div>
                     </div>
                 </div>
             )}
 
             <div style={{ backgroundColor: '#eff6ff', border: '1px dashed #3B82F6', borderRadius: 'var(--radius-md)', padding: '3rem', textAlign: 'center', color: '#1E40AF' }}>
-                <Receipt size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
-                <p style={{ fontWeight: 600 }}>Nenhum registro consolidado no período.</p>
+                <Receipt size={48} style={{ opacity: 0.5, marginBottom: '1rem', margin: '0 auto' }} />
+                <p style={{ fontWeight: 600 }}>Nenhum Ponto de Emissão Tributária arquivado neste mês.</p>
             </div>
         </div>
     )

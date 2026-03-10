@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { generateDocument } from '../lib/pdfGenerator'
-import { Search, Plus, Filter, Eye, Printer, FileText, FileBadge, Award, UploadCloud, Paperclip } from 'lucide-react'
+import { Search, Plus, Filter, Eye, Printer, FileText, FileBadge, Award, UploadCloud, Paperclip, Lock, Unlock } from 'lucide-react'
 
 export default function Alunos() {
     const [view, setView] = useState('list') // list | add | detail (student obj)
@@ -14,8 +14,42 @@ export default function Alunos() {
     const [formData, setFormData] = useState({
         full_name: '', cpf: '', rg: '', birth_date: '', birth_place: '', marital_status: 'Solteiro(a)',
         pai: '', mae: '', education_level: 'Ensino Médio Completo', email: '', phone: '',
-        cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: ''
+        cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: '',
+        base_value: '', discount_value: '', manual_signed: false
     })
+
+    const [showAuthModal, setShowAuthModal] = useState(false)
+    const [authPassword, setAuthPassword] = useState('')
+    const [authError, setAuthError] = useState('')
+    const [discountUnlocked, setDiscountUnlocked] = useState(false)
+
+    // Eval state
+    const [evalData, setEvalData] = useState({ exam_type: 'TEORICA', attempt: 1, grade: '', retraining_hours: 0, date: new Date().toISOString().split('T')[0] })
+
+    const handleEvalSubmit = async (student_id, class_id) => {
+        if (!evalData.grade || !evalData.date) return alert("Preencha a nota e a data.")
+        const payload = { ...evalData, student_id, class_id, grade: parseFloat(evalData.grade) }
+        const { error } = await supabase.from('student_evaluations').insert([payload])
+        if (error) alert("Erro ao lançar nota: " + error.message)
+        else {
+            alert("Lançamento de Avaliação efetuado com sucesso!")
+            setEvalData({ exam_type: 'TEORICA', attempt: 1, grade: '', retraining_hours: 0, date: new Date().toISOString().split('T')[0] })
+            fetchStudents()
+        }
+    }
+
+    const handleUnlockDiscount = async (e) => {
+        e.preventDefault()
+        setAuthError('')
+        const { data, error } = await supabase.from('financial_pins').select('*').eq('pin', authPassword).single()
+        if (data) {
+            setDiscountUnlocked(true)
+            setShowAuthModal(false)
+            setAuthPassword('')
+        } else {
+            setAuthError('Senha de autorização incorreta.')
+        }
+    }
 
     const fetchStudents = async () => {
         setLoading(true)
@@ -25,7 +59,7 @@ export default function Alunos() {
 
             const { data: stdData, error } = await supabase
                 .from('students')
-                .select('*, classes(name)')
+                .select('*, classes(name, course_name), academic_records(*), student_evaluations(*)')
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -78,7 +112,10 @@ export default function Alunos() {
             education_level: formData.education_level,
             turma_id: formData.turma_id ? formData.turma_id : null,
             parents_names: { pai: formData.pai, mae: formData.mae },
-            address: { cep: formData.cep, rua: formData.rua, numero: formData.numero, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado }
+            address: { cep: formData.cep, rua: formData.rua, numero: formData.numero, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado },
+            base_value: formData.base_value ? parseFloat(formData.base_value) : 0,
+            discount_value: formData.discount_value && discountUnlocked ? parseFloat(formData.discount_value) : 0,
+            manual_signed: formData.manual_signed
         }
 
         const { error } = await supabase.from('students').insert([newStudent])
@@ -202,8 +239,33 @@ export default function Alunos() {
                 </div>
             </div>
 
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>4. Dados Financeiros & Matrícula</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', alignItems: 'end' }}>
+                    <div className="form-group">
+                        <label className="form-label">Valor do Curso Bruto (R$)</label>
+                        <input type="number" step="0.01" className="form-control" name="base_value" value={formData.base_value} onChange={handleFormChange} placeholder="Ex: 1500.00" />
+                    </div>
+                    <div className="form-group" style={{ position: 'relative' }}>
+                        <label className="form-label">Desconto Autorizado (R$)</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <input type="number" step="0.01" className="form-control" name="discount_value" value={formData.discount_value} onChange={handleFormChange} disabled={!discountUnlocked} placeholder={!discountUnlocked ? "Bloqueado..." : "Ex: 200.00"} />
+                            {!discountUnlocked ? (
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowAuthModal(true)} title="Desbloquear Desconto" style={{ padding: '0.5rem 0.75rem' }}><Lock size={18} /></button>
+                            ) : (
+                                <button type="button" className="btn btn-secondary" disabled style={{ padding: '0.5rem 0.75rem', color: 'green', borderColor: 'green' }}><Unlock size={18} /></button>
+                            )}
+                        </div>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '0.5rem' }}>
+                        <input type="checkbox" id="manual_signed" checked={formData.manual_signed} onChange={(e) => setFormData({ ...formData, manual_signed: e.target.checked })} style={{ width: '24px', height: '24px', cursor: 'pointer' }} />
+                        <label htmlFor="manual_signed" style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--primary)' }}>Aluno Assinou o Manual?</label>
+                    </div>
+                </div>
+            </div>
+
             <div className="card">
-                <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>3. Turma (DB Link)</h3>
+                <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>5. Turma (DB Link)</h3>
                 <div className="form-group">
                     <label className="form-label">Selecione a Turma</label>
                     <select className="form-control" name="turma_id" value={formData.turma_id} onChange={handleFormChange}>
@@ -220,31 +282,143 @@ export default function Alunos() {
         </div>
     )
 
-    const renderDetail = (student) => (
-        <div className="animate-fade-in">
-            <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={() => setView('list')}>&larr; Voltar para Listagem</button>
-            <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                    <div><h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Ficha: {student.name}</h2><p className="text-muted">CPF: {student.cpf}</p></div>
-                    <div style={{ padding: '0.5rem 1rem', borderRadius: '999px', fontWeight: 600, backgroundColor: '#D1FAE5', color: '#065F46' }}>Ativo</div>
-                </div>
+    const renderDetail = (student) => {
+        const courseName = student.originalData?.classes?.course_name || ''
+        const requiresEval = courseName.includes('CD-CL') || courseName.includes('CD-TO') || courseName.includes('CD-CM')
+        const evals = student.originalData?.student_evaluations || []
 
-                <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Central de Impressão Rápida (PDF Automático)</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('contrato', student)}><FileText size={18} />Contrato de Capacitação</button>
-                    <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('recibo', student)}><Printer size={18} />Recibo Simplificado</button>
-                    <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('declaracao', student)}><FileBadge size={18} />Declaração</button>
-                    <button className="btn btn-primary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('certificado', student)}><Award size={18} />Certificado RT</button>
+        const maxTeorica = Math.max(0, ...evals.filter(e => e.exam_type === 'TEORICA').map(e => e.grade))
+        const maxPratica = Math.max(0, ...evals.filter(e => e.exam_type === 'PRATICA').map(e => e.grade))
+        const attemptsTeorica = evals.filter(e => e.exam_type === 'TEORICA').length
+        const attemptsPratica = evals.filter(e => e.exam_type === 'PRATICA').length
+
+        const isApproved = maxTeorica >= 7 && maxPratica >= 7
+        const isReprovado = (attemptsTeorica >= 3 && maxTeorica < 7) || (attemptsPratica >= 3 && maxPratica < 7)
+
+        let statusBadge = { label: 'Em Andamento', bg: '#DBEAFE', color: '#1E40AF' }
+        if (isApproved) statusBadge = { label: 'Aprovado (Certificado Liberado)', bg: '#D1FAE5', color: '#065F46' }
+        else if (isReprovado) statusBadge = { label: 'Reprovado (Atestado)', bg: '#FEE2E2', color: '#991B1B' }
+
+        return (
+            <div className="animate-fade-in">
+                <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={() => setView('list')}>&larr; Voltar para Listagem</button>
+                <div className="card" style={{ marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                        <div><h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Ficha: {student.name}</h2><p className="text-muted">CPF: {student.cpf}</p></div>
+                        <div style={{ padding: '0.5rem 1rem', borderRadius: '999px', fontWeight: 600, backgroundColor: statusBadge.bg, color: statusBadge.color }}>{statusBadge.label}</div>
+                    </div>
+
+                    {requiresEval && (
+                        <div style={{ padding: '1.5rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', marginBottom: '2rem', backgroundColor: 'var(--bg-color)' }}>
+                            <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Award size={20} /> Lançamento de Avaliações Técnicas</h3>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
+                                <div>
+                                    <h4 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Novo Lançamento</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <div>
+                                            <label className="form-label" style={{ fontSize: '0.8rem' }}>Prova</label>
+                                            <select className="form-control" style={{ padding: '0.5rem' }} value={evalData.exam_type} onChange={e => setEvalData({ ...evalData, exam_type: e.target.value })}>
+                                                <option value="TEORICA">Teórica</option><option value="PRATICA">Prática</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: '0.8rem' }}>Nota (0 - 10)</label>
+                                                <input type="number" step="0.1" className="form-control" style={{ padding: '0.5rem' }} value={evalData.grade} onChange={e => setEvalData({ ...evalData, grade: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: '0.8rem' }}>Nº Tentativa</label>
+                                                <input type="number" min="1" max="3" className="form-control" style={{ padding: '0.5rem' }} value={evalData.attempt} onChange={e => setEvalData({ ...evalData, attempt: parseInt(e.target.value) })} />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: '0.8rem' }}>Retreinamento (Horas)</label>
+                                                <input type="number" className="form-control" style={{ padding: '0.5rem' }} placeholder="Ex: 16" value={evalData.retraining_hours} onChange={e => setEvalData({ ...evalData, retraining_hours: parseInt(e.target.value) })} />
+                                            </div>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: '0.8rem' }}>Data</label>
+                                                <input type="date" className="form-control" style={{ padding: '0.5rem' }} value={evalData.date} onChange={e => setEvalData({ ...evalData, date: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <button className="btn btn-primary" onClick={() => handleEvalSubmit(student.id, student.originalData.turma_id)} style={{ padding: '0.5rem', marginTop: '0.5rem' }}>Salvar Nota</button>
+                                    </div>
+                                </div>
+                                <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '2rem' }}>
+                                    <h4 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Histórico de Lançamentos</h4>
+                                    {evals.length === 0 ? <p className="text-muted" style={{ fontSize: '0.9rem' }}>Nenhuma avaliação lançada ainda.</p> : (
+                                        <table style={{ width: '100%', fontSize: '0.85rem', textAlign: 'left', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                                                    <th style={{ paddingBottom: '0.5rem' }}>Data</th>
+                                                    <th style={{ paddingBottom: '0.5rem' }}>Tipo</th>
+                                                    <th style={{ paddingBottom: '0.5rem' }}>Tent.</th>
+                                                    <th style={{ paddingBottom: '0.5rem' }}>Nota</th>
+                                                    <th style={{ paddingBottom: '0.5rem' }}>Retreino</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {evals.sort((a, b) => new Date(b.date) - new Date(a.date)).map(e => (
+                                                    <tr key={e.id} style={{ borderBottom: '1px solid var(--bg-color)' }}>
+                                                        <td style={{ padding: '0.5rem 0' }}>{new Date(e.date).toLocaleDateString()}</td>
+                                                        <td style={{ padding: '0.5rem 0', fontWeight: 600, color: e.exam_type === 'TEORICA' ? '#1E40AF' : '#92400E' }}>{e.exam_type}</td>
+                                                        <td style={{ padding: '0.5rem 0' }}>{e.attempt}ª</td>
+                                                        <td style={{ padding: '0.5rem 0', fontWeight: 'bold', color: e.grade >= 7 ? '#059669' : '#DC2626' }}>{e.grade}</td>
+                                                        <td style={{ padding: '0.5rem 0' }}>{e.retraining_hours > 0 ? `${e.retraining_hours}h` : '--'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Central de Impressão Rápida (PDF Automático)</h3>
+                    {!student.originalData.manual_signed && (
+                        <div style={{ backgroundColor: '#FEF3C7', color: '#92400E', padding: '0.75rem', borderRadius: '4px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500 }}>
+                            ⚠️ O Certificado RT está bloqueado porque o Histórico acusa que o aluno não assinou/entregou o Manual.
+                        </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('matricula', student)}><FileText size={18} />Ficha de Matrícula</button>
+                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('recibo', student)}><Printer size={18} />Recibo de Pagamento</button>
+                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('inscrito', student)}><FileBadge size={18} />Declaração de Inscrito</button>
+                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('termino', student)}><FileBadge size={18} />Declaração de Término</button>
+                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('contrato', student)}><FileText size={18} />Contrato (4 Págs)</button>
+                        <button className="btn btn-primary" style={{ justifyContent: 'flex-start', opacity: student.originalData.manual_signed ? 1 : 0.5 }} disabled={!student.originalData.manual_signed} onClick={() => {
+                            // Injetando o final_status falso na memória apenas para o print
+                            student.originalData.academic_records = [{ final_status: isReprovado ? 'REPROVADO' : 'APROVADO' }];
+                            generateDocument('certificado', student)
+                        }}><Award size={18} />Certificado / Atestado</button>
+                    </div>
                 </div>
             </div>
-        </div>
-    )
+        )
+    }
 
     return (
         <div className="alunos-container">
             {view === 'list' && renderList()}
             {view === 'add' && renderAddForm()}
             {typeof view === 'object' && renderDetail(view)}
+
+            {showAuthModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                    <div className="card animate-fade-in" style={{ width: '400px', maxWidth: '90%' }}>
+                        <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}><Lock size={20} /> Autorização de Gestor</h3>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Insira a senha mestra ou PIN financeiro para habilitar a aplicação de descontos na matrícula.</p>
+                        {authError && <div style={{ backgroundColor: '#FEE2E2', color: '#991B1B', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.875rem' }}>{authError}</div>}
+                        <input type="password" placeholder="PIN de Autorização..." className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} style={{ marginBottom: '1.5rem', letterSpacing: '2px', textAlign: 'center', fontSize: '1.25rem' }} />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowAuthModal(false)}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleUnlockDiscount}>Desbloquear</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

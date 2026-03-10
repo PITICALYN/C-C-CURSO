@@ -191,7 +191,12 @@ export default function Professor() {
                 <h2 style={{ fontSize: '1.5rem' }}>Portal do Instrutor / Professor</h2>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '2rem' }}>
-                <button className={`btn ${activeTab === 'minhasTurmas' || activeTab === 'diario' ? 'btn-primary' : 'btn-secondary'}`}><List size={16} /> Fichário Eletrônico</button>
+                <button
+                    className={`btn ${activeTab === 'minhasTurmas' || activeTab === 'diario' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveTab('minhasTurmas')}
+                >
+                    <List size={16} /> Fichário Eletrônico
+                </button>
             </div>
             {activeTab === 'minhasTurmas' && renderTurmas()}
             {activeTab === 'diario' && renderDiario()}

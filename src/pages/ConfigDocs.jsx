@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FileText, Save, Eye, LayoutTemplate, Briefcase } from 'lucide-react'
+import jsPDF from 'jspdf'
 
 const AVAILABLE_VARIABLES = [
     { code: '{{NOME_ALUNO}}', desc: 'Nome completo do aluno' },
@@ -61,7 +62,28 @@ export default function ConfigDocs() {
 
     const handleCopyVar = (code) => {
         navigator.clipboard.writeText(code)
-        // alert('Variável copiada: ' + code) -> removed to avoid browser alerts in mock
+    }
+
+    const testPdfSimulator = () => {
+        const doc = new jsPDF()
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+
+        let simText = templateContent
+        // Substituindo variáveis por Fakes para Teste
+        simText = simText.replace(/{{NOME_ALUNO}}/g, 'João Silva de Teste')
+        simText = simText.replace(/{{CPF}}/g, '123.456.789-00')
+        simText = simText.replace(/{{RG}}/g, '12.345.678-9')
+        simText = simText.replace(/{{NOME_TURMA}}/g, 'Simulação-T1')
+        simText = simText.replace(/{{NOME_CURSO}}/g, 'Mecânica CD-CM')
+        simText = simText.replace(/{{VALOR_CURSO}}/g, 'R$ 1.500,00')
+        simText = simText.replace(/{{DATA_HOJE}}/g, new Date().toLocaleDateString('pt-BR'))
+
+        const lines = doc.splitTextToSize(simText, 180)
+        doc.text(lines, 15, 20)
+
+        // Exporta abrindo em nova aba Virtual
+        window.open(doc.output('bloburl'), '_blank')
     }
 
     return (
@@ -110,7 +132,7 @@ export default function ConfigDocs() {
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '600px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                         <h3 style={{ fontSize: '1.125rem' }}>Editando Texto-Base</h3>
-                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}>
+                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }} onClick={testPdfSimulator}>
                             <Eye size={16} /> Simular Geração PDF
                         </button>
                     </div>
