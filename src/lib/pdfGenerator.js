@@ -1,28 +1,34 @@
 // src/lib/pdfGenerator.js
 import jsPDF from 'jspdf'
+import { supabase } from './supabase'
 
-export const generateDocument = (type, student) => {
+export const generateDocument = async (type, student) => {
     const doc = new jsPDF()
+
+    // Buscar Plano de Fundo (Papel Timbrado) correspondente
+    const bgKey = `bg_doc_${type}`
+    const { data: settings } = await supabase.from('system_settings').select('value').eq('key', bgKey).single()
+    const bgImage = settings ? settings.value : null
 
     // Global settings for ICC Docs
     doc.setFont('helvetica')
 
     if (type === 'contrato') {
-        generateContractPDF(doc, student)
+        generateContractPDF(doc, student, bgImage)
     } else if (type === 'recibo') {
-        generateReceiptPDF(doc, student)
+        generateReceiptPDF(doc, student, bgImage)
     } else if (type === 'inscrito') {
-        generateDeclarationInscritoPDF(doc, student)
+        generateDeclarationInscritoPDF(doc, student, bgImage)
     } else if (type === 'termino') {
-        generateDeclarationTerminoPDF(doc, student)
+        generateDeclarationTerminoPDF(doc, student, bgImage)
     } else if (type === 'matricula') {
-        generateMatriculaPDF(doc, student)
+        generateMatriculaPDF(doc, student, bgImage)
     } else if (type === 'certificado') {
-        generateCertificatePDF(doc, student)
+        generateCertificatePDF(doc, student, bgImage) // O certificado já tem lógica própria mas vamos manter o padrão
     } else if (type === 'melhorias') {
-        generateImprovementPDF(doc, student)
+        generateImprovementPDF(doc, student, bgImage)
     } else if (type === 'relatorio_turma') {
-        generateClassReportPDF(doc, student) // Aqui 'student' é passado como objeto consolidador de dados da turma
+        generateClassReportPDF(doc, student) // Relatório de turma costuma ser papel simples
     }
 
     // Se for relatório de turma, o nome tem outro formato

@@ -55,11 +55,13 @@ export default function ConfigDocs() {
     const [templateContent, setTemplateContent] = useState(defaultContrato)
     const [userAuth, setUserAuth] = useState({ role: null, canUpload: false })
     const [manualBase64, setManualBase64] = useState('')
+    const [bgImageBase64, setBgImageBase64] = useState('')
     const [isUploading, setIsUploading] = useState(false)
+    const [isUploadingBg, setIsUploadingBg] = useState(false)
 
     useEffect(() => {
         const fetchConfig = async () => {
-            // Verificar Permissão do Usuário Logado
+            // ... (Auth check omitted for brevity in chunking if possible, but I'll keep it)
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
@@ -68,7 +70,6 @@ export default function ConfigDocs() {
                 const isDev = email.includes('desenvolvedor') || email.includes('carlos') || metadata.role === 'admin'
 
                 if (isDev) {
-                    console.log("ConfigDocs: Bypass Admin/Dev Ativo pelo Auth")
                     setUserAuth({ role: 'admin', canUpload: true })
                 } else if (profile) {
                     setUserAuth({
@@ -83,14 +84,19 @@ export default function ConfigDocs() {
                 }
             }
 
-            // Buscar Configuração do Manual do Aluno
-            const { data: settings } = await supabase.from('system_settings').select('value').eq('key', 'manual_aluno_url').single()
+            // Buscar Configurações
+            const { data: settings } = await supabase.from('system_settings').select('key, value')
             if (settings) {
-                setManualBase64(settings.value)
+                const manual = settings.find(s => s.key === 'manual_aluno_url')
+                if (manual) setManualBase64(manual.value)
+
+                const currentBgKey = `bg_doc_${activeDoc}`
+                const bg = settings.find(s => s.key === currentBgKey)
+                if (bg) setBgImageBase64(bg.value)
             }
         }
         fetchConfig()
-    }, [])
+    }, [activeDoc])
 
     const handleTabChange = (docType) => {
         setActiveDoc(docType)
@@ -215,6 +221,31 @@ export default function ConfigDocs() {
                                     <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><CheckCircle size={14} /> PDF Versão Atualizada Gravado</span>
                                 ) : (
                                     <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>Nenhum manual carregado.</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {userAuth.canUpload && (
+                        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Papel Timbrado ({activeDoc})</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Fundo visual para este documento. Os textos serão carimbados por cima.</p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: '#F0F9FF' }}>
+                                <LayoutTemplate size={32} color="var(--primary)" />
+                                <div style={{ textAlign: 'center' }}>
+                                    <label htmlFor="bg-upload" className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>
+                                        {isUploadingBg ? 'Carregando...' : 'Subir Papel Timbrado'}
+                                    </label>
+                                    <input type="file" id="bg-upload" accept="image/png, image/jpeg" style={{ display: 'none' }} disabled={isUploadingBg} onChange={handleBgUpload} />
+                                </div>
+                                {bgImageBase64 ? (
+                                    <div style={{ textAlign: 'center' }}>
+                                        <span style={{ fontSize: '0.75rem', color: '#0369A1', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><CheckCircle size={14} /> Timbre Ativo</span>
+                                        <img src={bgImageBase64} alt="Previa Timbre" style={{ width: '60px', height: '80px', objectFit: 'cover', marginTop: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
+                                    </div>
+                                ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sem fundo definido (Padrão Branco)</span>
                                 )}
                             </div>
                         </div>
