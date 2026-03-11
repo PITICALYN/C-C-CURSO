@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileText, Save, Eye, LayoutTemplate, Briefcase, UploadCloud, CheckCircle } from 'lucide-react'
+import { FileText, Save, Eye, LayoutTemplate, Briefcase, UploadCloud, CheckCircle, AlertTriangle } from 'lucide-react'
 import jsPDF from 'jspdf'
 import { supabase } from '../lib/supabase'
 
@@ -58,41 +58,53 @@ export default function ConfigDocs() {
     const [bgImageBase64, setBgImageBase64] = useState('')
     const [isUploading, setIsUploading] = useState(false)
     const [isUploadingBg, setIsUploadingBg] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [configError, setConfigError] = useState(null)
 
     useEffect(() => {
         const fetchConfig = async () => {
-            // ... (Auth check omitted for brevity in chunking if possible, but I'll keep it)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
-                const email = user.email?.toLowerCase() || ''
-                const metadata = user.user_metadata || {}
-                const isDev = email.includes('desenvolvedor') || email.includes('carlos') || metadata.role === 'admin'
+            setLoading(true)
+            setConfigError(null)
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
+                    const email = user.email?.toLowerCase() || ''
+                    const metadata = user.user_metadata || {}
+                    const isDev = email.includes('desenvolvedor') || email.includes('carlos') || email.includes('piticalym') || metadata.role === 'admin'
 
-                if (isDev) {
-                    setUserAuth({ role: 'admin', canUpload: true })
-                } else if (profile) {
-                    setUserAuth({
-                        role: profile.role,
-                        canUpload: profile.role === 'admin' || profile.role === 'developer' || (profile.permissions && profile.permissions.upload_manual)
-                    })
-                } else if (metadata.role) {
-                    setUserAuth({
-                        role: metadata.role,
-                        canUpload: metadata.role === 'admin' || (metadata.permissions && metadata.permissions.upload_manual)
-                    })
+                    if (isDev) {
+                        setUserAuth({ role: 'admin', canUpload: true })
+                    } else if (profile) {
+                        setUserAuth({
+                            role: profile.role,
+                            canUpload: profile.role === 'admin' || profile.role === 'developer' || (profile.permissions?.upload_manual)
+                        })
+                    } else if (metadata.role) {
+                        setUserAuth({
+                            role: metadata.role,
+                            canUpload: metadata.role === 'admin' || (metadata.permissions?.upload_manual)
+                        })
+                    }
                 }
-            }
 
-            // Buscar Configurações
-            const { data: settings } = await supabase.from('system_settings').select('key, value')
-            if (settings) {
-                const manual = settings.find(s => s.key === 'manual_aluno_url')
-                if (manual) setManualBase64(manual.value)
+                // Buscar Configurações
+                const { data: settings, error: settingsError } = await supabase.from('system_settings').select('key, value')
+                if (settingsError) throw settingsError
 
-                const currentBgKey = `bg_doc_${activeDoc}`
-                const bg = settings.find(s => s.key === currentBgKey)
-                if (bg) setBgImageBase64(bg.value)
+                if (settings) {
+                    const manual = settings.find(s => s.key === 'manual_aluno_url')
+                    if (manual) setManualBase64(manual.value)
+
+                    const currentBgKey = `bg_doc_${activeDoc}`
+                    const bg = settings.find(s => s.key === currentBgKey)
+                    setBgImageBase64(bg ? bg.value : '')
+                }
+            } catch (err) {
+                console.error("Erro ao carregar configurações:", err)
+                setConfigError(err.message)
+            } finally {
+                setLoading(false)
             }
         }
         fetchConfig()
@@ -105,17 +117,12 @@ export default function ConfigDocs() {
         if (docType === 'recibo') setTemplateContent(defaultRecibo)
     }
 
-    const handleCopyVar = (code) => {
-        navigator.clipboard.writeText(code)
-    }
-
     const testPdfSimulator = () => {
         const doc = new jsPDF()
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(10)
 
         let simText = templateContent
-        // Substituindo variáveis por Fakes para Teste
         simText = simText.replace(/{{NOME_ALUNO}}/g, 'João Silva de Teste')
         simText = simText.replace(/{{CPF}}/g, '123.456.789-00')
         simText = simText.replace(/{{RG}}/g, '12.345.678-9')
@@ -126,8 +133,6 @@ export default function ConfigDocs() {
 
         const lines = doc.splitTextToSize(simText, 180)
         doc.text(lines, 15, 20)
-
-        // Exporta abrindo em nova aba Virtual
         window.open(doc.output('bloburl'), '_blank')
     }
 
@@ -138,25 +143,13 @@ export default function ConfigDocs() {
             alert('Apenas arquivos PDF são aceitos.')
             return
         }
-        if (file.size > 2 * 1024 * 1024) { // Max 2MB base64 recommend
-            alert('O arquivo PDF não pode ultrapassar 2MB.')
-            return
-        }
-
         setIsUploading(true)
         const reader = new FileReader()
         reader.onloadend = async () => {
             const base64Data = reader.result
-
-            const { error } = await supabase
-                .from('system_settings')
-                .upsert({ key: 'manual_aluno_url', value: base64Data, updated_at: new Date() }, { onConflict: 'key' })
-
-            if (error) alert("Erro ao salvar Manual na nuvem: " + error.message)
-            else {
-                setManualBase64(base64Data)
-                alert("Manual Atualizado com sucesso na Base de Dados global.")
-            }
+            const { error } = await supabase.from('system_settings').upsert({ key: 'manual_aluno_url', value: base64Data, updated_at: new Date() }, { onConflict: 'key' })
+            if (error) alert("Erro: " + error.message)
+            else { setManualBase64(base64Data); alert("Manual Atualizado!"); }
             setIsUploading(false)
         }
         reader.readAsDataURL(file)
@@ -166,36 +159,39 @@ export default function ConfigDocs() {
         const file = e.target.files[0]
         if (!file) return
         if (!['image/png', 'image/jpeg'].includes(file.type)) {
-            alert('Apenas imagens PNG ou JPG são aceitas para papel timbrado.')
+            alert('Apenas imagens PNG ou JPG são aceitas.')
             return
         }
-
         setIsUploadingBg(true)
         const reader = new FileReader()
         reader.onloadend = async () => {
             const base64Data = reader.result
             const key = `bg_doc_${activeDoc}`
-
-            const { error } = await supabase
-                .from('system_settings')
-                .upsert({ key, value: base64Data, updated_at: new Date() }, { onConflict: 'key' })
-
-            if (error) alert("Erro ao salvar Papel Timbrado: " + error.message)
-            else {
-                setBgImageBase64(base64Data)
-                alert(`Papel Timbrado para ${activeDoc} atualizado!`)
-            }
+            const { error } = await supabase.from('system_settings').upsert({ key, value: base64Data, updated_at: new Date() }, { onConflict: 'key' })
+            if (error) alert("Erro: " + error.message)
+            else { setBgImageBase64(base64Data); alert(`Timbre para ${activeDoc} atualizado!`); }
             setIsUploadingBg(false)
         }
         reader.readAsDataURL(file)
     }
+
+    if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Carregando Configurações...</div>
+
+    if (configError) return (
+        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)' }}>
+            <AlertTriangle size={48} style={{ marginBottom: '1rem' }} />
+            <h3>Erro ao carregar configurações</h3>
+            <p>{configError}</p>
+            <button className="btn btn-primary" onClick={() => window.location.reload()} style={{ marginTop: '1rem' }}>Recarregar Página</button>
+        </div>
+    )
 
     return (
         <div className="animate-fade-in" style={{ paddingBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
                     <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Modelos de Documentos Oficiais</h2>
-                    <p className="text-muted">Ajuste os textos padrões de Contratos e Declarações. O sistema irá preencher magicamente os locais onde houver chaves de Variáveis.</p>
+                    <p className="text-muted">Ajuste os textos padrões de Contratos e Declarações.</p>
                 </div>
                 <button className="btn btn-primary">
                     <Save size={18} /> Salvar Modelo
@@ -203,53 +199,23 @@ export default function ConfigDocs() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr 300px', gap: '1.5rem', alignItems: 'start' }}>
-
-                {/* Menu Lateral de Documentos */}
+                {/* Menu Lateral */}
                 <div className="card" style={{ padding: '1rem' }}>
                     <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Tipos de Documento</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <button
-                            className={`btn ${activeDoc === 'contrato' ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ justifyContent: 'flex-start' }}
-                            onClick={() => handleTabChange('contrato')}
-                        >
-                            <Briefcase size={16} /> Contrato de Capacitação
-                        </button>
-                        <button
-                            className={`btn ${activeDoc === 'declaracao' ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ justifyContent: 'flex-start' }}
-                            onClick={() => handleTabChange('declaracao')}
-                        >
-                            <FileText size={16} /> Declaração Padrão
-                        </button>
-                        <button
-                            className={`btn ${activeDoc === 'recibo' ? 'btn-primary' : 'btn-secondary'}`}
-                            style={{ justifyContent: 'flex-start' }}
-                            onClick={() => handleTabChange('recibo')}
-                        >
-                            <LayoutTemplate size={16} /> Recibo Financeiro
-                        </button>
+                        <button className={`btn ${activeDoc === 'contrato' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => handleTabChange('contrato')}><Briefcase size={16} /> Contrato</button>
+                        <button className={`btn ${activeDoc === 'declaracao' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => handleTabChange('declaracao')}><FileText size={16} /> Declaração</button>
+                        <button className={`btn ${activeDoc === 'recibo' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => handleTabChange('recibo')}><LayoutTemplate size={16} /> Recibo</button>
                     </div>
 
                     {userAuth.canUpload && (
                         <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
                             <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Manual do Aluno</h3>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Carregue o PDF matriz. Atendentes baixarão a versão mais atual por aqui.</p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '1.5rem 1rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: '#F8FAFC' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: '8px', backgroundColor: '#F8FAFC' }}>
                                 <UploadCloud size={32} color="var(--primary)" />
-                                <div style={{ textAlign: 'center' }}>
-                                    <label htmlFor="manual-upload" className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>
-                                        {isUploading ? 'Transferindo...' : 'Selecionar Novo PDF'}
-                                    </label>
-                                    <input type="file" id="manual-upload" accept="application/pdf" style={{ display: 'none' }} disabled={isUploading} onChange={handleFileUpload} />
-                                </div>
-                                {/* Status do Manual */}
-                                {manualBase64 ? (
-                                    <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><CheckCircle size={14} /> PDF Versão Atualizada Gravado</span>
-                                ) : (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>Nenhum manual carregado.</span>
-                                )}
+                                <label htmlFor="manual-upload" className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.75rem' }}>{isUploading ? '...' : 'Subir PDF'}</label>
+                                <input type="file" id="manual-upload" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} />
+                                {manualBase64 && <span style={{ fontSize: '0.7rem', color: '#059669' }}>✓ Atualizado</span>}
                             </div>
                         </div>
                     )}
@@ -257,68 +223,37 @@ export default function ConfigDocs() {
                     {userAuth.canUpload && (
                         <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
                             <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Papel Timbrado ({activeDoc})</h3>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Fundo visual para este documento. Os textos serão carimbados por cima.</p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: '#F0F9FF' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: '8px', backgroundColor: '#F0F9FF' }}>
                                 <LayoutTemplate size={32} color="var(--primary)" />
-                                <div style={{ textAlign: 'center' }}>
-                                    <label htmlFor="bg-upload" className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>
-                                        {isUploadingBg ? 'Carregando...' : 'Subir Papel Timbrado'}
-                                    </label>
-                                    <input type="file" id="bg-upload" accept="image/png, image/jpeg" style={{ display: 'none' }} disabled={isUploadingBg} onChange={handleBgUpload} />
-                                </div>
-                                {bgImageBase64 ? (
-                                    <div style={{ textAlign: 'center' }}>
-                                        <span style={{ fontSize: '0.75rem', color: '#0369A1', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><CheckCircle size={14} /> Timbre Ativo</span>
-                                        <img src={bgImageBase64} alt="Previa Timbre" style={{ width: '60px', height: '80px', objectFit: 'cover', marginTop: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
-                                    </div>
-                                ) : (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sem fundo definido (Padrão Branco)</span>
-                                )}
+                                <label htmlFor="bg-upload" className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.75rem' }}>{isUploadingBg ? '...' : 'Subir Timbre'}</label>
+                                <input type="file" id="bg-upload" accept="image/png, image/jpeg" style={{ display: 'none' }} onChange={handleBgUpload} />
+                                {bgImageBase64 && <img src={bgImageBase64} alt="Previa" style={{ width: '50px', height: '60px', objectFit: 'cover' }} />}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Editor Central */}
+                {/* Editor */}
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '600px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                        <h3 style={{ fontSize: '1.125rem' }}>Editando Texto-Base</h3>
-                        <button className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }} onClick={testPdfSimulator}>
-                            <Eye size={16} /> Simular Geração PDF
-                        </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        <h3 style={{ fontSize: '1rem' }}>Texto-Base</h3>
+                        <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={testPdfSimulator}><Eye size={14} /> Prévia PDF</button>
                     </div>
-
-                    <textarea
-                        className="form-control"
-                        style={{ flex: 1, resize: 'none', fontFamily: 'monospace', fontSize: '0.875rem', lineHeight: '1.6' }}
-                        value={templateContent}
-                        onChange={(e) => setTemplateContent(e.target.value)}
-                    ></textarea>
+                    <textarea className="form-control" style={{ flex: 1, resize: 'none', fontFamily: 'monospace', fontSize: '0.8rem' }} value={templateContent} onChange={(e) => setTemplateContent(e.target.value)}></textarea>
                 </div>
 
-                {/* Guia de Variáveis */}
-                <div className="card" style={{ padding: '1rem', backgroundColor: 'var(--primary-light)', border: 'none' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--primary)' }}>Variáveis Automáticas</h3>
-                    <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-                        Clique na variável para copiar, e cole no texto ao lado. Quando você imprimir pela aba do Aluno, o sistema trocará isso pelo dado real do cliente.
-                    </p>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Variáveis */}
+                <div className="card" style={{ padding: '1rem', backgroundColor: '#F1F5F9' }}>
+                    <h3 style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>Variáveis</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {AVAILABLE_VARIABLES.map(v => (
-                            <div key={v.code}
-                                onClick={() => handleCopyVar(v.code)}
-                                style={{ padding: '0.75rem', backgroundColor: 'white', borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'background-color 0.2s', boxShadow: 'var(--shadow-sm)' }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                            >
-                                <code style={{ color: 'var(--primary)', fontWeight: 600, display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>{v.code}</code>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v.desc}</span>
+                            <div key={v.code} style={{ padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px', fontSize: '0.75rem', cursor: 'copy' }} onClick={() => navigator.clipboard.writeText(v.code)}>
+                                <code style={{ color: 'var(--primary)' }}>{v.code}</code>
+                                <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{v.desc}</div>
                             </div>
                         ))}
                     </div>
                 </div>
-
             </div>
         </div>
     )

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Users, Mail, Shield, Plus, Lock, CheckCircle, LayoutTemplate } from 'lucide-react'
+import { Users, Mail, Shield, Plus, Lock, CheckCircle, LayoutTemplate, UserPlus } from 'lucide-react'
 
 export default function Equipe() {
     const [users, setUsers] = useState([])
@@ -12,6 +12,7 @@ export default function Equipe() {
     })
     const [errorMsg, setErrorMsg] = useState('')
     const [debugInfo, setDebugInfo] = useState(null)
+    const [currentUser, setCurrentUser] = useState(null)
 
     const fetchUsers = async () => {
         setLoading(true)
@@ -19,6 +20,8 @@ export default function Equipe() {
 
         try {
             const { data: { user } } = await supabase.auth.getUser()
+            setCurrentUser(user)
+
             const { data, error, count, status } = await supabase
                 .from('users')
                 .select('*, permissions', { count: 'exact' })
@@ -35,6 +38,29 @@ export default function Equipe() {
         } catch (e) {
             setErrorMsg("Erro inesperado na aplicação: " + e.message)
             setDebugInfo({ catchError: e.message })
+        }
+        setLoading(false)
+    }
+
+    const handleSyncOwnProfile = async () => {
+        if (!currentUser) return
+        setLoading(true)
+        try {
+            const { error } = await supabase.from('users').upsert([{
+                id: currentUser.id,
+                email: currentUser.email,
+                full_name: currentUser.user_metadata?.full_name || 'Administrador Principal',
+                role: currentUser.user_metadata?.role || 'admin',
+                permissions: currentUser.user_metadata?.permissions || { upload_manual: true }
+            }])
+            if (error) {
+                alert("Erro ao sincronizar: " + error.message)
+            } else {
+                alert("Seu perfil foi sincronizado com sucesso! Agora você aparecerá na lista.")
+                fetchUsers()
+            }
+        } catch (e) {
+            alert("Falha: " + e.message)
         }
         setLoading(false)
     }
@@ -86,21 +112,27 @@ export default function Equipe() {
 
     return (
         <div className="animate-fade-in">
-            <div style={{ backgroundColor: '#000', color: '#fff', padding: '8px', fontSize: '12px', textAlign: 'center', marginBottom: '1.5rem', fontWeight: 'bold' }}>
-                🚀 MODO DIAGNÓSTICO ATIVO (V4) - SE VOCÊ VÊ ISSO, O CÓDIGO ATUALIZOU
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Equipe (Acesso Mestre)</h2>
-                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                    <Plus size={20} /> Novo Colaborador
-                </button>
+                <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Equipe (Acesso Mestre)</h2>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Gerencie acessos e permissões dos seus colaboradores.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    {users.length === 0 && !loading && (
+                        <button className="btn btn-secondary" onClick={handleSyncOwnProfile} style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+                            <UserPlus size={20} /> Recuperar Meu Perfil
+                        </button>
+                    )}
+                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                        <Plus size={20} /> Novo Colaborador
+                    </button>
+                </div>
             </div>
 
             {errorMsg && (
                 <div style={{ backgroundColor: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #FECACA' }}>
                     <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        ⚠️ ERRO DE SINCRONIZAÇÃO
+                        ⚠️ ERRO DE COMUNICAÇÃO
                     </div>
                     <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{errorMsg}</p>
                 </div>
@@ -125,6 +157,9 @@ export default function Equipe() {
                                     <div style={{ color: 'var(--text-secondary)' }}>
                                         <Users size={48} style={{ opacity: 0.2, marginBottom: '1rem', margin: '0 auto' }} />
                                         <p>Nenhum membro encontrado na tabela <code>public.users</code>.</p>
+                                        <p style={{ fontSize: '0.8rem', marginTop: '1rem' }}>
+                                            Dica: Clique em <b>"Recuperar Meu Perfil"</b> acima para aparecer na lista.
+                                        </p>
                                     </div>
                                 </td>
                             </tr>
@@ -211,14 +246,16 @@ export default function Equipe() {
                 </div>
             )}
 
-            <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                <h4 style={{ marginBottom: '0.5rem', color: '#64748b' }}>🛠️ DIAGNÓSTICO TÉCNICO (TODOS)</h4>
-                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-                <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-                    <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }} onClick={fetchUsers}>Recarregar Dados</button>
-                    <p style={{ color: '#64748b' }}>Se nada carregar aqui, a página pode estar com erro de execução.</p>
+            {debugInfo && (debugInfo.user?.includes('desenvolvedor') || debugInfo.user?.includes('carlos') || debugInfo.user?.includes('piticalym')) && (
+                <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                    <h4 style={{ marginBottom: '0.5rem', color: '#64748b' }}>🛠️ DIAGNÓSTICO TÉCNICO (Apenas Admin)</h4>
+                    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+                        <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }} onClick={fetchUsers}>Recarregar Dados</button>
+                        <p style={{ color: '#64748b' }}>Se 'count' for 0, a tabela está vazia. Clique em "Recuperar Meu Perfil" para corrigir.</p>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     )
 }
