@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Users, Shield, Plus, UserCheck, RefreshCw, Trash2, UserX, UserCheck2 } from 'lucide-react'
+import { Users, Shield, Plus, UserCheck, RefreshCw, Trash2, UserX, UserCheck2, Lock } from 'lucide-react'
 
 export default function Equipe() {
     const [users, setUsers] = useState([])
@@ -12,6 +12,12 @@ export default function Equipe() {
     })
     const [errorMsg, setErrorMsg] = useState('')
     const [currentUser, setCurrentUser] = useState(null)
+
+    const isDeveloperAccount = (u) => {
+        if (!u) return false
+        const email = u.email?.toLowerCase() || ''
+        return u.role === 'admin' || email.includes('desenvolvedor') || email.includes('carlos') || email.includes('piticalym')
+    }
 
     const fetchUsers = async () => {
         setLoading(true)
@@ -62,7 +68,12 @@ export default function Equipe() {
         setLoading(false)
     }
 
-    const handleToggleActive = async (userId, currentStatus) => {
+    const handleToggleActive = async (user, currentStatus) => {
+        if (isDeveloperAccount(user)) {
+            alert("Contas de Administrador/Desenvolvedor não podem ser bloqueadas.")
+            return
+        }
+
         if (!confirm(`Deseja ${currentStatus ? 'BLOQUEAR' : 'ATIVAR'} este usuário?`)) return
 
         setLoading(true)
@@ -70,7 +81,7 @@ export default function Equipe() {
             const { error } = await supabase
                 .from('users')
                 .update({ is_active: !currentStatus })
-                .eq('id', userId)
+                .eq('id', user.id)
 
             if (error) throw error
             fetchUsers()
@@ -80,20 +91,25 @@ export default function Equipe() {
         setLoading(false)
     }
 
-    const handleDeleteUser = async (userId, userEmail) => {
-        if (userId === currentUser?.id) {
+    const handleDeleteUser = async (user) => {
+        if (user.id === currentUser?.id) {
             alert("Você não pode excluir a si mesmo!")
             return
         }
 
-        if (!confirm(`ATENÇÃO: Deseja EXCLUIR permanentemente o usuário ${userEmail} da lista da equipe? \n\nNota: Isso removerá o perfil do banco de dados, mas não exclui a conta de login (Auth).`)) return
+        if (isDeveloperAccount(user)) {
+            alert("Contas de Administrador/Desenvolvedor não podem ser excluídas.")
+            return
+        }
+
+        if (!confirm(`ATENÇÃO: Deseja EXCLUIR permanentemente o usuário ${user.email} da lista da equipe? \n\nNota: Isso removerá o perfil do banco de dados, mas não exclui a conta de login (Auth).`)) return
 
         setLoading(true)
         try {
             const { error } = await supabase
                 .from('users')
                 .delete()
-                .eq('id', userId)
+                .eq('id', user.id)
 
             if (error) throw error
             fetchUsers()
@@ -202,50 +218,62 @@ export default function Equipe() {
                                 </td>
                             </tr>
                         )}
-                        {users.map(u => (
-                            <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: u.is_active === false ? 0.6 : 1 }}>
-                                <td style={{ padding: '1rem', fontWeight: 500 }}>
-                                    {u.full_name}
-                                    {u.is_active === false && <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: 'var(--danger)', fontWeight: 'bold' }}>(BLOQUEADO)</span>}
-                                </td>
-                                <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{u.email}</td>
-                                <td style={{ padding: '1rem' }}>
-                                    <span style={{
-                                        padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600,
-                                        backgroundColor: u.role === 'admin' ? '#FEE2E2' : (u.role === 'coordenador' ? '#FEF3C7' : '#E0E7FF'),
-                                        color: u.role === 'admin' ? '#991B1B' : (u.role === 'coordenador' ? '#92400E' : '#3730A3'),
-                                        textTransform: 'uppercase'
-                                    }}>
-                                        {u.role}
-                                    </span>
-                                </td>
-                                <td style={{ padding: '1rem' }}>
-                                    {u.permissions?.upload_manual ? (
-                                        <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#ECFDF5', color: '#065F46', borderRadius: '4px', border: '1px solid #A7F3D0' }}>Gestor de Manuais</span>
-                                    ) : <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Acesso Padrão</span>}
-                                </td>
-                                <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                                        <button
-                                            className="btn btn-secondary"
-                                            style={{ padding: '0.4rem', border: '1px solid #e2e8f0' }}
-                                            title={u.is_active === false ? "Ativar Usuário" : "Bloquear Usuário"}
-                                            onClick={() => handleToggleActive(u.id, u.is_active !== false)}
-                                        >
-                                            {u.is_active === false ? <UserCheck2 size={16} color="#059669" /> : <UserX size={16} color="#dc2626" />}
-                                        </button>
-                                        <button
-                                            className="btn btn-secondary"
-                                            style={{ padding: '0.4rem', border: '1px solid #e2e8f0' }}
-                                            title="Excluir da Lista"
-                                            onClick={() => handleDeleteUser(u.id, u.email)}
-                                        >
-                                            <Trash2 size={16} color="#64748b" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                        {users.map(u => {
+                            const isDev = isDeveloperAccount(u)
+                            return (
+                                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: u.is_active === false ? 0.6 : 1 }}>
+                                    <td style={{ padding: '1rem', fontWeight: 500 }}>
+                                        {u.full_name}
+                                        {u.is_active === false && <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: 'var(--danger)', fontWeight: 'bold' }}>(BLOQUEADO)</span>}
+                                        {isDev && <Shield size={14} style={{ marginLeft: '0.5rem', color: 'var(--primary)', opacity: 0.7 }} title="Conta Protegida" />}
+                                    </td>
+                                    <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{u.email}</td>
+                                    <td style={{ padding: '1rem' }}>
+                                        <span style={{
+                                            padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600,
+                                            backgroundColor: u.role === 'admin' ? '#FEE2E2' : (u.role === 'coordenador' ? '#FEF3C7' : '#E0E7FF'),
+                                            color: u.role === 'admin' ? '#991B1B' : (u.role === 'coordenador' ? '#92400E' : '#3730A3'),
+                                            textTransform: 'uppercase'
+                                        }}>
+                                            {u.role}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '1rem' }}>
+                                        {u.permissions?.upload_manual ? (
+                                            <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#ECFDF5', color: '#065F46', borderRadius: '4px', border: '1px solid #A7F3D0' }}>Gestor de Manuais</span>
+                                        ) : <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Acesso Padrão</span>}
+                                    </td>
+                                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                            {isDev ? (
+                                                <button className="btn btn-secondary" style={{ padding: '0.4rem', border: '1px solid #e2e8f0', opacity: 0.5, cursor: 'not-allowed' }} title="Protegido">
+                                                    <Lock size={16} color="#64748b" />
+                                                </button>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        className="btn btn-secondary"
+                                                        style={{ padding: '0.4rem', border: '1px solid #e2e8f0' }}
+                                                        title={u.is_active === false ? "Ativar Usuário" : "Bloquear Usuário"}
+                                                        onClick={() => handleToggleActive(u, u.is_active !== false)}
+                                                    >
+                                                        {u.is_active === false ? <UserCheck2 size={16} color="#059669" /> : <UserX size={16} color="#dc2626" />}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-secondary"
+                                                        style={{ padding: '0.4rem', border: '1px solid #e2e8f0' }}
+                                                        title="Excluir da Lista"
+                                                        onClick={() => handleDeleteUser(u)}
+                                                    >
+                                                        <Trash2 size={16} color="#64748b" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                        })}
                     </tbody>
                 </table>
             </div>
