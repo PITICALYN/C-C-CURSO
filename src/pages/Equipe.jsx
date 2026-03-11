@@ -34,6 +34,7 @@ export default function Equipe() {
             }
         } catch (e) {
             setErrorMsg("Erro inesperado na aplicação: " + e.message)
+            setDebugInfo({ catchError: e.message })
         }
         setLoading(false)
     }
@@ -85,6 +86,10 @@ export default function Equipe() {
 
     return (
         <div className="animate-fade-in">
+            <div style={{ backgroundColor: '#000', color: '#fff', padding: '8px', fontSize: '12px', textAlign: 'center', marginBottom: '1.5rem', fontWeight: 'bold' }}>
+                🚀 MODO DIAGNÓSTICO ATIVO (V4) - SE VOCÊ VÊ ISSO, O CÓDIGO ATUALIZOU
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Equipe (Acesso Mestre)</h2>
                 <button className="btn btn-primary" onClick={() => setShowModal(true)}>
@@ -120,7 +125,6 @@ export default function Equipe() {
                                     <div style={{ color: 'var(--text-secondary)' }}>
                                         <Users size={48} style={{ opacity: 0.2, marginBottom: '1rem', margin: '0 auto' }} />
                                         <p>Nenhum membro encontrado na tabela <code>public.users</code>.</p>
-                                        <p style={{ fontSize: '0.8rem' }}>Dica: Se você acabou de criar uma conta, verifique se ela foi sincronizada corretamente.</p>
                                     </div>
                                 </td>
                             </tr>
@@ -147,7 +151,7 @@ export default function Equipe() {
                                     </div>
                                 </td>
                                 <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
-                                    {new Date(u.created_at).toLocaleDateString()}
+                                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
                                 </td>
                             </tr>
                         ))}
@@ -207,16 +211,14 @@ export default function Equipe() {
                 </div>
             )}
 
-            {debugInfo && (debugInfo.user?.includes('desenvolvedor') || debugInfo.user?.includes('carlos')) && (
-                <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                    <h4 style={{ marginBottom: '0.5rem', color: '#64748b' }}>🛠️ DIAGNÓSTICO TÉCNICO (Apenas Admin)</h4>
-                    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-                    <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-                        <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }} onClick={fetchUsers}>Recarregar Dados</button>
-                        <p style={{ color: '#64748b' }}>Se 'count' for 0, a tabela está vazia. Se houver 'error', o RLS pode estar bloqueando.</p>
-                    </div>
+            <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                <h4 style={{ marginBottom: '0.5rem', color: '#64748b' }}>🛠️ DIAGNÓSTICO TÉCNICO (TODOS)</h4>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+                <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }} onClick={fetchUsers}>Recarregar Dados</button>
+                    <p style={{ color: '#64748b' }}>Se nada carregar aqui, a página pode estar com erro de execução.</p>
                 </div>
-            )}
+            </div>
         </div>
     )
 }
