@@ -87,7 +87,18 @@ export default function Equipe() {
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center' }}>Carregando Membros...</td></tr>}
+                        {loading && <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Carregando Membros...</td></tr>}
+                        {!loading && users.length === 0 && (
+                            <tr>
+                                <td colSpan="5" style={{ padding: '3rem', textAlign: 'center' }}>
+                                    <div style={{ color: 'var(--text-secondary)' }}>
+                                        <Users size={48} style={{ opacity: 0.2, marginBottom: '1rem', margin: '0 auto' }} />
+                                        <p>Nenhum membro encontrado na tabela <code>public.users</code>.</p>
+                                        <p style={{ fontSize: '0.8rem' }}>Dica: Se você acabou de criar uma conta, verifique se ela foi sincronizada corretamente.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
                         {!loading && users.map(u => (
                             <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                 <td style={{ padding: '1rem', fontWeight: 500 }}>{u.full_name}</td>

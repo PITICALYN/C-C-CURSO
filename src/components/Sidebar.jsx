@@ -11,16 +11,13 @@ export default function Sidebar() {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role, full_name').eq('id', user.id).single()
-                if (profile) {
-                    const fullName = profile.full_name?.toLowerCase() || ''
-                    const email = user.email?.toLowerCase() || ''
+                const email = user.email?.toLowerCase() || ''
 
-                    // Se for desenvolvedor, força a Role pra admin para liberar tudo
-                    if (fullName.includes('desenvolvedor') || email.includes('desenvolvedor')) {
-                        setUserRole('admin')
-                    } else {
-                        setUserRole(profile.role)
-                    }
+                // Bypass absoluto para Desenvolvedor
+                if (email.includes('desenvolvedor')) {
+                    setUserRole('admin')
+                } else if (profile) {
+                    setUserRole(profile.role)
                 }
             }
         }
