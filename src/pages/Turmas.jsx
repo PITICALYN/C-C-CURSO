@@ -14,8 +14,33 @@ export default function Turmas() {
     const [formData, setFormData] = useState({
         name: '',
         course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
-        start_date: '', predicted_end_date: '', schedule: '', duration: ''
+        start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136'
     })
+
+    // Função para calcular dias úteis entre duas datas (ignora sábados, domingos e feriados se existissem)
+    const countWorkingDays = (startDateStr, endDateStr) => {
+        let count = 0
+        let curDate = new Date(startDateStr + 'T00:00:00')
+        const endDate = new Date(endDateStr + 'T00:00:00')
+
+        while (curDate <= endDate) {
+            const dayOfWeek = curDate.getDay() // 0 = Domingo, 6 = Sábado
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                count++
+            }
+            curDate.setDate(curDate.getDate() + 1)
+        }
+        return count
+    }
+
+    // Auto-preenchimento ao mudar o curso
+    useEffect(() => {
+        if (formData.course_name.includes('Topografia') || formData.course_name.includes('TO')) {
+            setFormData(prev => ({ ...prev, duration: '80', schedule: 'Seg a Sex 18h as 22h' }))
+        } else {
+            setFormData(prev => ({ ...prev, duration: '136', schedule: 'Seg a Sex 18h as 22h' }))
+        }
+    }, [formData.course_name])
 
     const generateNextClassName = (existingClasses) => {
         const yearSuffix = new Date().getFullYear().toString().slice(-2) // Ex: "26" p/ 2026
@@ -30,7 +55,7 @@ export default function Turmas() {
             const { data, error } = await supabase
                 .from('classes')
                 .select(`
-                    id, name, course_name, start_date, actual_start_date, predicted_end_date, schedule, duration,
+                    id, name, course_name, start_date, actual_start_date, predicted_end_date, actual_end_date, schedule, duration,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -44,6 +69,7 @@ export default function Turmas() {
                 startDate: c.start_date,
                 actualStartDate: c.actual_start_date,
                 predictedEndDate: c.predicted_end_date,
+                actualEndDate: c.actual_end_date,
                 schedule: c.schedule,
                 duration: c.duration,
                 studentsCount: c.students[0]?.count || 0
@@ -71,6 +97,19 @@ export default function Turmas() {
         if (!formData.name || !formData.course_name) {
             alert('Por favor, preencha o Nome e Curso.')
             return
+        }
+
+        // Validação Inteligente de Carga Horária vs Dias Úteis (Motor Fase 16)
+        if (formData.start_date && formData.predicted_end_date && formData.schedule.toLowerCase().includes('seg a sex')) {
+            const workingDays = countWorkingDays(formData.start_date, formData.predicted_end_date)
+            // Assumindo aula noturna de 4 horas (18h às 22h) ou 8h a 17h para Sábado (mas o alerta é geral pra dias uteis)
+            const availableHours = workingDays * 4
+            const targetHours = parseInt(formData.duration.replace(/\D/g, '')) || 0 // Pega só os números
+
+            if (availableHours < targetHours) {
+                const proceed = window.confirm(`ATENÇÃO CONFLITO DE GRADE!\n\nO período selecionado contém apenas ${workingDays} dias úteis (Seg-Sex), totalizando ~${availableHours} horas (base 4h/dia).\nMas a duração do curso exige ${targetHours} horas.\n\nDeseja ignorar o alerta e criar a turma mesmo assim (talvez usando Sábados Extras)?`)
+                if (!proceed) return
+            }
         }
 
         const newClass = {
@@ -104,6 +143,22 @@ export default function Turmas() {
                 alert('Erro ao iniciar turma: ' + error.message)
             } else {
                 alert('Marcada como Em Andamento com sucesso!')
+                fetchClasses()
+            }
+        }
+    }
+
+    const handleEndClass = async (classId, className) => {
+        const confirmedDate = window.prompt(`Registrar Data Real de TÉRMINO para a Turma: ${className}\n\nIsso fechará a turma definitivamente. Deixe em branco para usar a data de hoje ou preencha (YYYY-MM-DD):`, new Date().toISOString().split('T')[0])
+
+        if (confirmedDate !== null) {
+            const dateToSave = confirmedDate || new Date().toISOString().split('T')[0]
+            const { error } = await supabase.from('classes').update({ actual_end_date: dateToSave }).eq('id', classId)
+
+            if (error) {
+                alert('Erro ao encerrar turma: ' + error.message)
+            } else {
+                alert('Turma finalizada e arquivada com sucesso!')
                 fetchClasses()
             }
         }
@@ -189,10 +244,17 @@ export default function Turmas() {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Clock size={16} className="text-warning" />
+                                    <Clock size={16} className={turma.actualEndDate ? "text-success" : "text-warning"} />
                                     <div>
-                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Término (Previsão)</p>
-                                        <p className="text-muted">{turma.predictedEndDate ? new Date(turma.predictedEndDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</p>
+                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Término ({turma.actualEndDate ? 'Real / Fechado' : 'Previsão'})</p>
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                                            <p className="text-muted" style={{ textDecoration: turma.actualEndDate ? 'line-through' : 'none' }}>
+                                                {turma.predictedEndDate ? new Date(turma.predictedEndDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                            </p>
+                                            {turma.actualEndDate && (
+                                                <span style={{ color: '#065F46', fontWeight: 600 }}>{new Date(turma.actualEndDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -201,6 +263,11 @@ export default function Turmas() {
                                 {!turma.actualStartDate && (
                                     <button className="btn" style={{ justifyContent: 'center', backgroundColor: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0' }} onClick={() => handleStartClass(turma.id, turma.name)}>
                                         <CalendarIcon size={16} /> Marcar Início Oficial
+                                    </button>
+                                )}
+                                {(turma.actualStartDate && !turma.actualEndDate) && (
+                                    <button className="btn" style={{ justifyContent: 'center', backgroundColor: '#FEF2F2', color: '#991B1B', borderColor: '#FECACA' }} onClick={() => handleEndClass(turma.id, turma.name)}>
+                                        <Clock size={16} /> Encerrar e Fechar Turma
                                     </button>
                                 )}
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
