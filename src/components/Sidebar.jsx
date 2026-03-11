@@ -77,21 +77,18 @@ export default function Sidebar() {
                     Turmas
                 </NavLink>
 
-                {/* Exibição forçada para testes de By-pass ou Admin/Coordenador Real */}
-                {(userRole === 'admin' || userRole === 'coordenador' || userRole === 'desenvolvedor' || true) && (
-                    <NavLink
-                        to="/financeiro"
-                        style={({ isActive }) => ({
-                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                            fontWeight: isActive ? '600' : '500'
-                        })}
-                    >
-                        <DollarSign size={20} />
-                        Financeiro
-                    </NavLink>
-                )}
+                <NavLink
+                    to="/financeiro"
+                    style={({ isActive }) => ({
+                        display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                        borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                        backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                        fontWeight: isActive ? '600' : '500'
+                    })}
+                >
+                    <DollarSign size={20} />
+                    Financeiro
+                </NavLink>
 
                 <NavLink
                     to="/professor"
