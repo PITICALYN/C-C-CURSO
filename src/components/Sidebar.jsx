@@ -12,7 +12,9 @@ export default function Sidebar() {
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role, full_name').eq('id', user.id).single()
                 if (profile) {
-                    const isDeveloper = profile.full_name?.toLowerCase().includes('desenvolvedor')
+                    const fullName = profile.full_name?.toLowerCase() || ''
+                    const email = user.email?.toLowerCase() || ''
+                    const isDeveloper = fullName.includes('desenvolvedor') || email.includes('desenvolvedor')
                     setUserRole(isDeveloper ? 'admin' : profile.role)
                 }
             }
