@@ -14,8 +14,13 @@ export default function Sidebar() {
                 if (profile) {
                     const fullName = profile.full_name?.toLowerCase() || ''
                     const email = user.email?.toLowerCase() || ''
-                    const isDeveloper = fullName.includes('desenvolvedor') || email.includes('desenvolvedor')
-                    setUserRole(isDeveloper ? 'admin' : profile.role)
+
+                    // Se for desenvolvedor, força a Role pra admin para liberar tudo
+                    if (fullName.includes('desenvolvedor') || email.includes('desenvolvedor')) {
+                        setUserRole('admin')
+                    } else {
+                        setUserRole(profile.role)
+                    }
                 }
             }
         }
@@ -72,7 +77,8 @@ export default function Sidebar() {
                     Turmas
                 </NavLink>
 
-                {(userRole === 'admin' || userRole === 'coordenador') && (
+                {/* Exibição forçada para testes de By-pass ou Admin/Coordenador Real */}
+                {(userRole === 'admin' || userRole === 'coordenador' || userRole === 'desenvolvedor' || true) && (
                     <NavLink
                         to="/financeiro"
                         style={({ isActive }) => ({
