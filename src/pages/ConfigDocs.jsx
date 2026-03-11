@@ -64,9 +64,10 @@ export default function ConfigDocs() {
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
                 if (profile) {
+                    const isDev = user.email === 'desenvolvedor@cecengenharia.com' || profile.full_name?.toLowerCase().includes('desenvolvedor')
                     setUserAuth({
                         role: profile.role,
-                        canUpload: profile.role === 'admin' || (profile.permissions && profile.permissions.upload_manual)
+                        canUpload: profile.role === 'admin' || profile.role === 'developer' || isDev || (profile.permissions && profile.permissions.upload_manual)
                     })
                 }
             }
