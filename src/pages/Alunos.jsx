@@ -23,6 +23,7 @@ export default function Alunos() {
     const [authPassword, setAuthPassword] = useState('')
     const [authError, setAuthError] = useState('')
     const [discountUnlocked, setDiscountUnlocked] = useState(false)
+    const [isEditing, setIsEditing] = useState(null) // ID do aluno sendo editado
 
     // Eval state
     const [evalData, setEvalData] = useState({ exam_type: 'TEORICA', attempt: 1, grade: '', retraining_hours: 0, date: new Date().toISOString().split('T')[0] })
@@ -101,7 +102,7 @@ export default function Alunos() {
             return
         }
 
-        const newStudent = {
+        const studentPayload = {
             full_name: formData.full_name,
             cpf: formData.cpf,
             rg: formData.rg,
@@ -121,15 +122,64 @@ export default function Alunos() {
             manual_signed: formData.manual_signed
         }
 
-        const { error } = await supabase.from('students').insert([newStudent])
-
-        if (error) {
-            alert('Erro ao salvar no Supabase: ' + error.message)
+        let result;
+        if (isEditing) {
+            result = await supabase.from('students').update(studentPayload).eq('id', isEditing)
         } else {
-            alert('Matrícula realizada com sucesso na Nuvem!')
+            result = await supabase.from('students').insert([studentPayload])
+        }
+
+        if (result.error) {
+            alert('Erro ao salvar no Supabase: ' + result.error.message)
+        } else {
+            alert(isEditing ? 'Dados atualizados com sucesso!' : 'Matrícula realizada com sucesso!')
+            resetForm()
             setView('list')
             fetchStudents()
         }
+    }
+
+    const resetForm = () => {
+        setFormData({
+            full_name: '', cpf: '', rg: '', birth_date: '', birth_place: '', marital_status: 'Solteiro(a)',
+            pai: '', mae: '', education_level: 'Ensino Médio Completo', email: '', phone: '',
+            cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: '',
+            how_knew: 'Amigo', how_knew_other: '',
+            base_value: '', discount_value: '', manual_signed: false
+        })
+        setIsEditing(null)
+        setDiscountUnlocked(false)
+    }
+
+    const handleEdit = (student) => {
+        const s = student.originalData
+        setFormData({
+            full_name: s.full_name || '',
+            cpf: s.cpf || '',
+            rg: s.rg || '',
+            birth_date: s.birth_date || '',
+            birth_place: s.birth_place || '',
+            marital_status: s.marital_status || 'Solteiro(a)',
+            pai: s.parents_names?.pai || '',
+            mae: s.parents_names?.mae || '',
+            education_level: s.education_level || 'Ensino Médio Completo',
+            email: s.email || '',
+            phone: s.phone || '',
+            cep: s.address?.cep || '',
+            rua: s.address?.rua || '',
+            numero: s.address?.numero || '',
+            bairro: s.address?.bairro || '',
+            cidade: s.address?.cidade || '',
+            estado: s.address?.estado || '',
+            turma_id: s.turma_id || '',
+            how_knew: s.how_knew || 'Amigo',
+            how_knew_other: s.how_knew_other || '',
+            base_value: s.base_value || '',
+            discount_value: s.discount_value || '',
+            manual_signed: s.manual_signed || false
+        })
+        setIsEditing(s.id)
+        setView('add')
     }
 
     const handleDownloadManual = async () => {
@@ -164,7 +214,7 @@ export default function Alunos() {
         <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Alunos</h2>
-                <button className="btn btn-primary" onClick={() => setView('add')}>
+                <button className="btn btn-primary" onClick={() => { resetForm(); setView('add'); }}>
                     <Plus size={20} /> Nova Matrícula
                 </button>
             </div>
@@ -210,6 +260,7 @@ export default function Alunos() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                        <button className="btn btn-secondary" style={{ padding: '0.5rem' }} title="Editar Dados" onClick={() => handleEdit(s)}><FileText size={16} /></button>
                                         <button className="btn btn-secondary" style={{ padding: '0.5rem' }} title="Visualizar Perfil" onClick={() => setView(s)}><Eye size={16} /></button>
                                         <button className="btn btn-secondary" style={{ padding: '0.5rem' }} title="Impressão Rápida" onClick={() => setView(s)}><Printer size={16} /></button>
                                     </td>
@@ -226,10 +277,10 @@ export default function Alunos() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={() => setView('list')}>&larr; Voltar para listagem</button>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Nova Ficha de Matrícula</h2>
+                    <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={() => { resetForm(); setView('list'); }}>&larr; Voltar para listagem</button>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{isEditing ? 'Editar Ficha do Aluno' : 'Nova Ficha de Matrícula'}</h2>
                 </div>
-                <button className="btn btn-primary" onClick={handleSubmit}>Salvar Matrícula (Nuvem)</button>
+                <button className="btn btn-primary" onClick={handleSubmit}>Salvar Matrícula</button>
             </div>
 
             <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -309,9 +360,14 @@ export default function Alunos() {
                             )}
                         </div>
                     </div>
-                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '0.5rem' }}>
-                        <input type="checkbox" id="manual_signed" checked={formData.manual_signed} onChange={(e) => setFormData({ ...formData, manual_signed: e.target.checked })} style={{ width: '24px', height: '24px', cursor: 'pointer' }} />
-                        <label htmlFor="manual_signed" style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--primary)' }}>Aluno Assinou o Manual?</label>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <input type="checkbox" id="manual_signed" checked={formData.manual_signed} onChange={(e) => setFormData({ ...formData, manual_signed: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
+                            <label htmlFor="manual_signed" style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--primary)', fontSize: '0.9rem' }}>Aluno Assinou o Manual?</label>
+                        </div>
+                        <button type="button" className="btn btn-secondary" onClick={handleDownloadManual} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Printer size={16} /> Imprimir Manual
+                        </button>
                     </div>
                 </div>
             </div>
@@ -328,8 +384,8 @@ export default function Alunos() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', gap: '1rem' }}>
-                <button className="btn btn-secondary" onClick={() => setView('list')}>Cancelar</button>
-                <button className="btn btn-primary" onClick={handleSubmit}>Salvar Matrícula (Supabase)</button>
+                <button className="btn btn-secondary" onClick={() => { resetForm(); setView('list'); }}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleSubmit}>Salvar Matrícula</button>
             </div>
         </div>
     )
@@ -452,6 +508,13 @@ export default function Alunos() {
                     )}
 
 
+                    <div style={{ padding: '1.5rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                        <div>
+                            <h4 style={{ margin: 0 }}>Deseja corrigir algum dado deste aluno?</h4>
+                            <p className="text-muted" style={{ fontSize: '0.875rem', margin: '4px 0 0 0' }}>Altere CPF, Nome ou outras informações pessoais.</p>
+                        </div>
+                        <button className="btn btn-primary" onClick={() => handleEdit(student)}>Editar Cadastro</button>
+                    </div>
                 </div>
             </div>
         )
