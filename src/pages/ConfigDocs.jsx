@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { FileText, Save, Eye, LayoutTemplate, Briefcase } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { FileText, Save, Eye, LayoutTemplate, Briefcase, UploadCloud, CheckCircle } from 'lucide-react'
 import jsPDF from 'jspdf'
+import { supabase } from '../lib/supabase'
 
 const AVAILABLE_VARIABLES = [
     { code: '{{NOME_ALUNO}}', desc: 'Nome completo do aluno' },
@@ -52,6 +53,32 @@ Assinatura: ___________________________`
 export default function ConfigDocs() {
     const [activeDoc, setActiveDoc] = useState('contrato')
     const [templateContent, setTemplateContent] = useState(defaultContrato)
+    const [userAuth, setUserAuth] = useState({ role: null, canUpload: false })
+    const [manualBase64, setManualBase64] = useState('')
+    const [isUploading, setIsUploading] = useState(false)
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            // Verificar Permissão do Usuário Logado
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
+                if (profile) {
+                    setUserAuth({
+                        role: profile.role,
+                        canUpload: profile.role === 'admin' || (profile.permissions && profile.permissions.upload_manual)
+                    })
+                }
+            }
+
+            // Buscar Configuração do Manual do Aluno
+            const { data: settings } = await supabase.from('system_settings').select('value').eq('key', 'manual_aluno_url').single()
+            if (settings) {
+                setManualBase64(settings.value)
+            }
+        }
+        fetchConfig()
+    }, [])
 
     const handleTabChange = (docType) => {
         setActiveDoc(docType)
@@ -86,8 +113,39 @@ export default function ConfigDocs() {
         window.open(doc.output('bloburl'), '_blank')
     }
 
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        if (file.type !== 'application/pdf') {
+            alert('Apenas arquivos PDF são aceitos.')
+            return
+        }
+        if (file.size > 2 * 1024 * 1024) { // Max 2MB base64 recommend
+            alert('O arquivo PDF não pode ultrapassar 2MB.')
+            return
+        }
+
+        setIsUploading(true)
+        const reader = new FileReader()
+        reader.onloadend = async () => {
+            const base64Data = reader.result
+
+            const { error } = await supabase
+                .from('system_settings')
+                .upsert({ key: 'manual_aluno_url', value: base64Data, updated_at: new Date() }, { onConflict: 'key' })
+
+            if (error) alert("Erro ao salvar Manual na nuvem: " + error.message)
+            else {
+                setManualBase64(base64Data)
+                alert("Manual Atualizado com sucesso na Base de Dados global.")
+            }
+            setIsUploading(false)
+        }
+        reader.readAsDataURL(file)
+    }
+
     return (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in" style={{ paddingBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
                     <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Modelos de Documentos Oficiais</h2>
@@ -126,6 +184,29 @@ export default function ConfigDocs() {
                             <LayoutTemplate size={16} /> Recibo Financeiro
                         </button>
                     </div>
+
+                    {userAuth.canUpload && (
+                        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Manual do Aluno</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Carregue o PDF matriz. Atendentes baixarão a versão mais atual por aqui.</p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '1.5rem 1rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: '#F8FAFC' }}>
+                                <UploadCloud size={32} color="var(--primary)" />
+                                <div style={{ textAlign: 'center' }}>
+                                    <label htmlFor="manual-upload" className="btn btn-secondary" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>
+                                        {isUploading ? 'Transferindo...' : 'Selecionar Novo PDF'}
+                                    </label>
+                                    <input type="file" id="manual-upload" accept="application/pdf" style={{ display: 'none' }} disabled={isUploading} onChange={handleFileUpload} />
+                                </div>
+                                {/* Status do Manual */}
+                                {manualBase64 ? (
+                                    <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><CheckCircle size={14} /> PDF Versão Atualizada Gravado</span>
+                                ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>Nenhum manual carregado.</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Editor Central */}

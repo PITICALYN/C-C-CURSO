@@ -6,12 +6,15 @@ export default function Equipe() {
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
-    const [formData, setFormData] = useState({ email: '', password: '', full_name: '', role: 'atendente' })
+    const [formData, setFormData] = useState({
+        email: '', password: '', full_name: '', role: 'atendente',
+        permissions: { upload_manual: false }
+    })
     const [errorMsg, setErrorMsg] = useState('')
 
     const fetchUsers = async () => {
         setLoading(true)
-        const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false })
+        const { data, error } = await supabase.from('users').select('*, permissions').order('created_at', { ascending: false })
         if (!error && data) setUsers(data)
         setLoading(false)
     }
@@ -32,7 +35,8 @@ export default function Equipe() {
             options: {
                 data: {
                     full_name: formData.full_name,
-                    role: formData.role
+                    role: formData.role,
+                    permissions: formData.permissions
                 }
             }
         })
@@ -64,6 +68,7 @@ export default function Equipe() {
                             <th style={{ padding: '1rem' }}>Nome Completo</th>
                             <th style={{ padding: '1rem' }}>E-mail</th>
                             <th style={{ padding: '1rem' }}>Papel / Função</th>
+                            <th style={{ padding: '1rem' }}>Permissões Extras</th>
                             <th style={{ padding: '1rem' }}>Data de Cadastro</th>
                         </tr>
                     </thead>
@@ -82,6 +87,13 @@ export default function Equipe() {
                                     }}>
                                         {u.role}
                                     </span>
+                                </td>
+                                <td style={{ padding: '1rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        {u.permissions?.upload_manual ? (
+                                            <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#ECFDF5', color: '#065F46', borderRadius: '4px', border: '1px solid #A7F3D0' }}>Gerencia Manuais</span>
+                                        ) : <span className="text-muted" style={{ fontSize: '0.75rem' }}>Padrão</span>}
+                                    </div>
                                 </td>
                                 <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
                                     {new Date(u.created_at).toLocaleDateString()}
@@ -117,6 +129,21 @@ export default function Equipe() {
                                     <option value="admin">Administrador Geral</option>
                                 </select>
                             </div>
+
+                            <div className="form-group" style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                                <label className="form-label" style={{ marginBottom: '0.75rem', color: 'var(--primary)' }}>Permissões Específicas (Opcional)</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <input
+                                        type="checkbox"
+                                        id="perm_upload_manual"
+                                        checked={formData.permissions.upload_manual}
+                                        onChange={(e) => setFormData({ ...formData, permissions: { ...formData.permissions, upload_manual: e.target.checked } })}
+                                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                    />
+                                    <label htmlFor="perm_upload_manual" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>Pode Atualizar e Fazer Upload de "Manuais do Aluno"</label>
+                                </div>
+                            </div>
+
                             <div className="form-group">
                                 <label className="form-label">Senha Inicial do Usuário</label>
                                 <input type="password" placeholder="Min. 6 caracteres" className="form-control" required minLength="6" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
