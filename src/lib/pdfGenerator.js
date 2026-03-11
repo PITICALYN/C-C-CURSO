@@ -21,9 +21,16 @@ export const generateDocument = (type, student) => {
         generateCertificatePDF(doc, student)
     } else if (type === 'melhorias') {
         generateImprovementPDF(doc, student)
+    } else if (type === 'relatorio_turma') {
+        generateClassReportPDF(doc, student) // Aqui 'student' é passado como objeto consolidador de dados da turma
     }
 
-    doc.save(`${type}_${student.name.replace(/\s+/g, '_')}.pdf`)
+    // Se for relatório de turma, o nome tem outro formato
+    if (type === 'relatorio_turma') {
+        doc.save(`Relatorio_Turma_${student.name.replace(/\//g, '-')}.pdf`)
+    } else {
+        doc.save(`${type}_${student.name.replace(/\s+/g, '_')}.pdf`)
+    }
 }
 
 function generateContractPDF(doc, student) {
@@ -213,4 +220,89 @@ function generateImprovementPDF(doc, student) {
 
     doc.text('_________________________________', 105, 230, { align: 'center' })
     doc.text('Assinatura do Instrutor / Especialista', 105, 240, { align: 'center' })
+}
+
+function generateClassReportPDF(doc, classData) {
+    const { name, course, startDate, predictedEndDate, students, includeGrades } = classData
+
+    doc.addPage("a4", "landscape")
+    doc.setPage(2) // Start logic on the new transverse page
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`RELATÓRIO CONSOLIDADO DE ALUNOS - ${includeGrades ? 'COM NOTAS' : 'SEMANAL / PRESENÇAS'}`, 148, 20, { align: 'center' })
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Turma: ${name} | Curso: ${course} | Início Previsto: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : '-'} | Término Previsto: ${predictedEndDate ? new Date(predictedEndDate).toLocaleDateString('pt-BR') : '-'}`, 15, 30)
+
+    doc.setLineWidth(0.5)
+    doc.line(15, 35, 280, 35) // Divider
+
+    // Tabela Header
+    let yPos = 45
+    doc.setFont('helvetica', 'bold')
+    doc.text('NOME DO ALUNO', 15, yPos)
+    doc.text('CPF', 100, yPos)
+    if (includeGrades) {
+        doc.text('MÉDIA FINAL', 150, yPos)
+    }
+    doc.text('FALTAS', 190, yPos)
+    doc.text('STATUS MANUAL', 230, yPos)
+
+    doc.line(15, yPos + 2, 280, yPos + 2)
+    doc.setFont('helvetica', 'normal')
+    yPos += 10
+
+    if (!students || students.length === 0) {
+        doc.setFontStyle('italic')
+        doc.text('Nenhum aluno registrado/vinculado a esta turma.', 15, yPos)
+        return
+    }
+
+    // Tabela Body
+    students.forEach(st => {
+        // Verifica se chegamos no limite da página
+        if (yPos > 190) {
+            doc.addPage("a4", "landscape")
+            yPos = 20
+
+            doc.setFont('helvetica', 'bold')
+            doc.text('NOME DO ALUNO', 15, yPos)
+            doc.text('CPF', 100, yPos)
+            if (includeGrades) {
+                doc.text('MÉDIA FINAL', 150, yPos)
+            }
+            doc.text('FALTAS', 190, yPos)
+            doc.text('STATUS MANUAL', 230, yPos)
+            doc.line(15, yPos + 2, 280, yPos + 2)
+            doc.setFont('helvetica', 'normal')
+
+            yPos += 10
+        }
+
+        doc.text(st.full_name || 'Desconhecido', 15, yPos)
+        doc.text(st.cpf || 'Não Informado', 100, yPos)
+
+        if (includeGrades) {
+            // Conta as notas (Mock por enquanto já que a lógica de avaliações virá depois)
+            const finalGrade = (st.academic_records && st.academic_records.length > 0) ? (st.academic_records[0].grade || 'Pendente') : 'Pendente'
+            doc.text(finalGrade.toString(), 150, yPos)
+        }
+
+        // Soma Faltas (Mock caso nã otenham presenças ainda)
+        const faltas = st.attendance_records ? st.attendance_records.filter(a => a.status === 'ausente').length : 0
+        doc.text(faltas.toString(), 190, yPos)
+
+        // Status Manual
+        doc.text(st.manual_signed ? 'Entregue' : 'Pendente', 230, yPos)
+
+        yPos += 10
+        doc.setDrawColor(200)
+        doc.line(15, yPos - 6, 280, yPos - 6)
+        doc.setDrawColor(0)
+    })
+
+    doc.text('_________________________________', 148, yPos + 20, { align: 'center' })
+    doc.text('Diretoria C&C', 148, yPos + 28, { align: 'center' })
 }

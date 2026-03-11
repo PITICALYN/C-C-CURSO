@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { BookOpen, Users, LogIn, LineChart, Calendar as CalendarIcon, Clock } from 'lucide-react'
+import { BookOpen, Users, LogIn, LineChart, Calendar as CalendarIcon, Clock, X, Printer, FileText } from 'lucide-react'
+import { generateDocument } from '../lib/pdfGenerator'
 
 export default function Turmas() {
     const [classes, setClasses] = useState([])
     const [loading, setLoading] = useState(true)
     const [view, setView] = useState('list') // list | add
+    const [selectedClassData, setSelectedClassData] = useState(null)
+    const [classStudents, setClassStudents] = useState([])
+    const [modalLoading, setModalLoading] = useState(false)
 
     const [formData, setFormData] = useState({
         name: '',
@@ -105,6 +109,41 @@ export default function Turmas() {
         }
     }
 
+    const handleOpenClassStudents = async (turma) => {
+        setSelectedClassData(turma)
+        setModalLoading(true)
+
+        // Buscar alunos matriculados e informações vinculadas como faltas e notas.
+        const { data, error } = await supabase
+            .from('students')
+            .select(`
+                id, full_name, cpf, manual_signed,
+                attendance_records ( status ),
+                academic_records ( grade, final_status )
+            `)
+            .eq('turma_id', turma.id)
+            .order('full_name', { ascending: true })
+
+        if (!error && data) {
+            setClassStudents(data)
+        } else {
+            alert("Erro ao buscar alunos da turma.")
+        }
+        setModalLoading(false)
+    }
+
+    const printClassReport = (turma, includeGrades) => {
+        const payload = {
+            name: turma.name,
+            course: turma.course,
+            startDate: turma.startDate,
+            predictedEndDate: turma.predictedEndDate,
+            includeGrades: includeGrades,
+            students: classStudents
+        }
+        generateDocument('relatorio_turma', payload)
+    }
+
     const renderList = () => (
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -165,7 +204,7 @@ export default function Turmas() {
                                     </button>
                                 )}
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                                    <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => handleOpenClassStudents(turma)}>
                                         <Users size={16} /> Alunos
                                     </button>
                                     <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
@@ -180,6 +219,60 @@ export default function Turmas() {
                         <BookOpen size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
                         <p style={{ fontWeight: 600 }}>Abrir Nova Turma</p>
                         <button className="btn btn-secondary" style={{ marginTop: '1rem' }}>Configurar Grade</button>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: ALUNOS DA TURMA E RELATÓRIOS */}
+            {selectedClassData && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 9999, padding: '1rem', paddingTop: '5vh' }}>
+                    <div className="card animate-fade-in" style={{ width: '800px', maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Users size={20} /> Relatório da Turma: {selectedClassData.name}</h3>
+                                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{selectedClassData.course}</p>
+                            </div>
+                            <button className="btn" style={{ padding: '0.5rem', backgroundColor: '#F1F5F9', color: 'var(--text-secondary)' }} onClick={() => setSelectedClassData(null)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Ações de Impressão */}
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center', backgroundColor: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE' }} onClick={() => printClassReport(selectedClassData, false)}>
+                                <Printer size={18} /> Relatório Padrão (Sem Notas)
+                            </button>
+                            <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => printClassReport(selectedClassData, true)}>
+                                <FileText size={18} /> Relatório Gerencial (Com Notas e Faltas)
+                            </button>
+                        </div>
+
+                        {/* Tabela de Preview dos Alunos */}
+                        {modalLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem' }}>Carregando vínculos...</div>
+                        ) : (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                        <th style={{ padding: '0.75rem' }}>Nome do Aluno(a)</th>
+                                        <th style={{ padding: '0.75rem' }}>CPF</th>
+                                        <th style={{ padding: '0.75rem' }}>Manual?</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {classStudents.map(st => (
+                                        <tr key={st.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ padding: '0.75rem', fontWeight: 500 }}>{st.full_name}</td>
+                                            <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{st.cpf}</td>
+                                            <td style={{ padding: '0.75rem' }}>{st.manual_signed ? 'Sim' : 'Não'}</td>
+                                        </tr>
+                                    ))}
+                                    {classStudents.length === 0 && (
+                                        <tr><td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum aluno matriculado nesta turma ainda.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             )}
