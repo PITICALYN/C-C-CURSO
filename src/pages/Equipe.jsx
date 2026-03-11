@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Users, Mail, Shield, Plus, Lock } from 'lucide-react'
+import { Users, Mail, Shield, Plus, Lock, CheckCircle, LayoutTemplate } from 'lucide-react'
 
 export default function Equipe() {
     const [users, setUsers] = useState([])
@@ -11,15 +11,29 @@ export default function Equipe() {
         permissions: { upload_manual: false }
     })
     const [errorMsg, setErrorMsg] = useState('')
+    const [debugInfo, setDebugInfo] = useState(null)
 
     const fetchUsers = async () => {
         setLoading(true)
-        const { data, error } = await supabase.from('users').select('*, permissions').order('created_at', { ascending: false })
-        if (error) {
-            console.error("Erro Fetch Equipe:", error)
-            setErrorMsg("Falha na conexão: " + error.message + " (Código: " + error.code + ")")
-        } else if (data) {
-            setUsers(data)
+        setErrorMsg('')
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser()
+            const { data, error, count, status } = await supabase
+                .from('users')
+                .select('*, permissions', { count: 'exact' })
+                .order('created_at', { ascending: false })
+
+            if (error) {
+                console.error("Erro Fetch Equipe:", error)
+                setErrorMsg(`Erro ${error.code}: ${error.message}`)
+                setDebugInfo({ error, status, user: user?.email })
+            } else {
+                setUsers(data || [])
+                setDebugInfo({ count, status, user: user?.email, rows: data?.length })
+            }
+        } catch (e) {
+            setErrorMsg("Erro inesperado na aplicação: " + e.message)
         }
         setLoading(false)
     }
@@ -33,7 +47,6 @@ export default function Equipe() {
         setErrorMsg('')
         setLoading(true)
 
-        // Usa o admin trick ou Auth SignUp (Se AutoConfirm estiver On)
         const { data, error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
@@ -49,7 +62,6 @@ export default function Equipe() {
         if (error) {
             setErrorMsg(error.message)
         } else {
-            // Sincronização Manual: Inserir na tabela public.users
             const { error: dbError } = await supabase.from('users').insert([{
                 id: data.user.id,
                 email: formData.email,
@@ -79,6 +91,15 @@ export default function Equipe() {
                     <Plus size={20} /> Novo Colaborador
                 </button>
             </div>
+
+            {errorMsg && (
+                <div style={{ backgroundColor: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #FECACA' }}>
+                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        ⚠️ ERRO DE SINCRONIZAÇÃO
+                    </div>
+                    <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{errorMsg}</p>
+                </div>
+            )}
 
             <div className="card">
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -139,8 +160,6 @@ export default function Equipe() {
                     <div className="card animate-fade-in" style={{ width: '500px', maxWidth: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
                         <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}><Shield size={20} /> Cadastrar Nova Conta</h3>
 
-                        {errorMsg && <div style={{ backgroundColor: '#FEE2E2', color: '#991B1B', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.875rem' }}>{errorMsg}</div>}
-
                         <form onSubmit={handleCreateUser}>
                             <div className="form-group">
                                 <label className="form-label">Nome Completo</label>
@@ -184,6 +203,17 @@ export default function Equipe() {
                                 <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Criando...' : 'Criar Conta'}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {debugInfo && (debugInfo.user?.includes('desenvolvedor') || debugInfo.user?.includes('carlos')) && (
+                <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                    <h4 style={{ marginBottom: '0.5rem', color: '#64748b' }}>🛠️ DIAGNÓSTICO TÉCNICO (Apenas Admin)</h4>
+                    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+                        <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }} onClick={fetchUsers}>Recarregar Dados</button>
+                        <p style={{ color: '#64748b' }}>Se 'count' for 0, a tabela está vazia. Se houver 'error', o RLS pode estar bloqueando.</p>
                     </div>
                 </div>
             )}
