@@ -162,6 +162,34 @@ export default function ConfigDocs() {
         reader.readAsDataURL(file)
     }
 
+    const handleBgUpload = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        if (!['image/png', 'image/jpeg'].includes(file.type)) {
+            alert('Apenas imagens PNG ou JPG são aceitas para papel timbrado.')
+            return
+        }
+
+        setIsUploadingBg(true)
+        const reader = new FileReader()
+        reader.onloadend = async () => {
+            const base64Data = reader.result
+            const key = `bg_doc_${activeDoc}`
+
+            const { error } = await supabase
+                .from('system_settings')
+                .upsert({ key, value: base64Data, updated_at: new Date() }, { onConflict: 'key' })
+
+            if (error) alert("Erro ao salvar Papel Timbrado: " + error.message)
+            else {
+                setBgImageBase64(base64Data)
+                alert(`Papel Timbrado para ${activeDoc} atualizado!`)
+            }
+            setIsUploadingBg(false)
+        }
+        reader.readAsDataURL(file)
+    }
+
     return (
         <div className="animate-fade-in" style={{ paddingBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
