@@ -44,10 +44,24 @@ export default function Equipe() {
         if (error) {
             setErrorMsg(error.message)
         } else {
-            alert('Membro da equipe cadastrado com sucesso!')
-            setShowModal(false)
-            setFormData({ email: '', password: '', full_name: '', role: 'atendente' })
-            fetchUsers()
+            // Sincronização Manual: Inserir na tabela public.users
+            const { error: dbError } = await supabase.from('users').insert([{
+                id: data.user.id,
+                email: formData.email,
+                full_name: formData.full_name,
+                role: formData.role,
+                permissions: formData.permissions
+            }])
+
+            if (dbError) {
+                console.error("Erro ao sincronizar perfil no BD:", dbError)
+                setErrorMsg("Conta criada no Auth, mas falhou ao salvar perfil: " + dbError.message)
+            } else {
+                alert('Membro da equipe cadastrado e ativado com sucesso!')
+                setShowModal(false)
+                setFormData({ email: '', password: '', full_name: '', role: 'atendente', permissions: { upload_manual: false } })
+                fetchUsers()
+            }
         }
         setLoading(false)
     }
