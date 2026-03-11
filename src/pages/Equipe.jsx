@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Users, Mail, Shield, Plus, Lock, CheckCircle, LayoutTemplate, UserPlus } from 'lucide-react'
+import { Users, Shield, Plus, UserCheck, RefreshCw } from 'lucide-react'
 
 export default function Equipe() {
     const [users, setUsers] = useState([])
@@ -11,7 +11,6 @@ export default function Equipe() {
         permissions: { upload_manual: false }
     })
     const [errorMsg, setErrorMsg] = useState('')
-    const [debugInfo, setDebugInfo] = useState(null)
     const [currentUser, setCurrentUser] = useState(null)
 
     const fetchUsers = async () => {
@@ -22,22 +21,19 @@ export default function Equipe() {
             const { data: { user } } = await supabase.auth.getUser()
             setCurrentUser(user)
 
-            const { data, error, count, status } = await supabase
+            const { data, error } = await supabase
                 .from('users')
-                .select('*, permissions', { count: 'exact' })
+                .select('*, permissions')
                 .order('created_at', { ascending: false })
 
             if (error) {
                 console.error("Erro Fetch Equipe:", error)
-                setErrorMsg(`Erro ${error.code}: ${error.message}`)
-                setDebugInfo({ error, status, user: user?.email })
+                setErrorMsg(`Erro ao carregar equipe: ${error.message}`)
             } else {
                 setUsers(data || [])
-                setDebugInfo({ count, status, user: user?.email, rows: data?.length })
             }
         } catch (e) {
             setErrorMsg("Erro inesperado na aplicação: " + e.message)
-            setDebugInfo({ catchError: e.message })
         }
         setLoading(false)
     }
@@ -56,7 +52,7 @@ export default function Equipe() {
             if (error) {
                 alert("Erro ao sincronizar: " + error.message)
             } else {
-                alert("Seu perfil foi sincronizado com sucesso! Agora você aparecerá na lista.")
+                alert("Perfil sincronizado! Agora você aparece na lista.")
                 fetchUsers()
             }
         } catch (e) {
@@ -99,9 +95,9 @@ export default function Equipe() {
 
             if (dbError) {
                 console.error("Erro ao sincronizar perfil no BD:", dbError)
-                setErrorMsg("Conta criada no Auth, mas falhou ao salvar perfil: " + dbError.message)
+                setErrorMsg("Conta criada, mas falhou ao salvar perfil no banco: " + dbError.message)
             } else {
-                alert('Membro da equipe cadastrado e ativado com sucesso!')
+                alert('Membro da equipe cadastrado com sucesso!')
                 setShowModal(false)
                 setFormData({ email: '', password: '', full_name: '', role: 'atendente', permissions: { upload_manual: false } })
                 fetchUsers()
@@ -114,15 +110,13 @@ export default function Equipe() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Equipe (Acesso Mestre)</h2>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Gerencie acessos e permissões dos seus colaboradores.</p>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Equipe</h2>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Administre os acessos dos colaboradores ao sistema.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    {users.length === 0 && !loading && (
-                        <button className="btn btn-secondary" onClick={handleSyncOwnProfile} style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-                            <UserPlus size={20} /> Recuperar Meu Perfil
-                        </button>
-                    )}
+                    <button className="btn btn-secondary" onClick={fetchUsers} disabled={loading} title="Atualizar Lista">
+                        <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+                    </button>
                     <button className="btn btn-primary" onClick={() => setShowModal(true)}>
                         <Plus size={20} /> Novo Colaborador
                     </button>
@@ -130,11 +124,9 @@ export default function Equipe() {
             </div>
 
             {errorMsg && (
-                <div style={{ backgroundColor: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #FECACA' }}>
-                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        ⚠️ ERRO DE COMUNICAÇÃO
-                    </div>
-                    <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{errorMsg}</p>
+                <div style={{ backgroundColor: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #FECACA', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <Shield size={20} />
+                    <span style={{ fontSize: '0.875rem' }}>{errorMsg}</span>
                 </div>
             )}
 
@@ -145,26 +137,29 @@ export default function Equipe() {
                             <th style={{ padding: '1rem' }}>Nome Completo</th>
                             <th style={{ padding: '1rem' }}>E-mail</th>
                             <th style={{ padding: '1rem' }}>Papel / Função</th>
-                            <th style={{ padding: '1rem' }}>Permissões Extras</th>
-                            <th style={{ padding: '1rem' }}>Data de Cadastro</th>
+                            <th style={{ padding: '1rem' }}>Status</th>
+                            <th style={{ padding: '1rem' }}>Cadastro</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Carregando Membros...</td></tr>}
+                        {loading && users.length === 0 && <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center' }}>Carregando Membros...</td></tr>}
                         {!loading && users.length === 0 && (
                             <tr>
                                 <td colSpan="5" style={{ padding: '3rem', textAlign: 'center' }}>
                                     <div style={{ color: 'var(--text-secondary)' }}>
                                         <Users size={48} style={{ opacity: 0.2, marginBottom: '1rem', margin: '0 auto' }} />
-                                        <p>Nenhum membro encontrado na tabela <code>public.users</code>.</p>
-                                        <p style={{ fontSize: '0.8rem', marginTop: '1rem' }}>
-                                            Dica: Clique em <b>"Recuperar Meu Perfil"</b> acima para aparecer na lista.
-                                        </p>
+                                        <p>Nenhum membro encontrado na lista oficial.</p>
+                                        <div style={{ marginTop: '1.5rem', backgroundColor: '#F8FAFC', padding: '1.5rem', borderRadius: '8px', border: '1px solid #E2E8F0', display: 'inline-block' }}>
+                                            <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: '#64748b' }}>Se você é o administrador, sincronize seu perfil agora:</p>
+                                            <button className="btn btn-primary" onClick={handleSyncOwnProfile}>
+                                                <UserCheck size={18} /> Sincronizar Meu Nome na Lista
+                                            </button>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
                         )}
-                        {!loading && users.map(u => (
+                        {users.map(u => (
                             <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                 <td style={{ padding: '1rem', fontWeight: 500 }}>{u.full_name}</td>
                                 <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{u.email}</td>
@@ -179,11 +174,9 @@ export default function Equipe() {
                                     </span>
                                 </td>
                                 <td style={{ padding: '1rem' }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                        {u.permissions?.upload_manual ? (
-                                            <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#ECFDF5', color: '#065F46', borderRadius: '4px', border: '1px solid #A7F3D0' }}>Gerencia Manuais</span>
-                                        ) : <span className="text-muted" style={{ fontSize: '0.75rem' }}>Padrão</span>}
-                                    </div>
+                                    {u.permissions?.upload_manual ? (
+                                        <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#ECFDF5', color: '#065F46', borderRadius: '4px', border: '1px solid #A7F3D0' }}>Gestor de Manuais</span>
+                                    ) : <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Acesso Padrão</span>}
                                 </td>
                                 <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
                                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
@@ -219,7 +212,7 @@ export default function Equipe() {
                             </div>
 
                             <div className="form-group" style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                                <label className="form-label" style={{ marginBottom: '0.75rem', color: 'var(--primary)' }}>Permissões Específicas (Opcional)</label>
+                                <label className="form-label" style={{ marginBottom: '0.75rem', color: 'var(--primary)' }}>Permissões Específicas</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <input
                                         type="checkbox"
@@ -242,17 +235,6 @@ export default function Equipe() {
                                 <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Criando...' : 'Criar Conta'}</button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
-
-            {debugInfo && (debugInfo.user?.includes('desenvolvedor') || debugInfo.user?.includes('carlos') || debugInfo.user?.includes('piticalym')) && (
-                <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                    <h4 style={{ marginBottom: '0.5rem', color: '#64748b' }}>🛠️ DIAGNÓSTICO TÉCNICO (Apenas Admin)</h4>
-                    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-                    <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-                        <button className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }} onClick={fetchUsers}>Recarregar Dados</button>
-                        <p style={{ color: '#64748b' }}>Se 'count' for 0, a tabela está vazia. Clique em "Recuperar Meu Perfil" para corrigir.</p>
                     </div>
                 </div>
             )}
