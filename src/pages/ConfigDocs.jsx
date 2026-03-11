@@ -67,12 +67,16 @@ export default function ConfigDocs() {
                 const isDev = email.includes('desenvolvedor')
 
                 if (isDev) {
+                    console.log("ConfigDocs: Bypass Dev Ativo")
                     setUserAuth({ role: 'admin', canUpload: true })
                 } else if (profile) {
+                    console.log("ConfigDocs: Perfil carregado:", profile.role)
                     setUserAuth({
                         role: profile.role,
                         canUpload: profile.role === 'admin' || profile.role === 'developer' || (profile.permissions && profile.permissions.upload_manual)
                     })
+                } else {
+                    console.log("ConfigDocs: Nenhum perfil encontrado para o UID")
                 }
             }
 

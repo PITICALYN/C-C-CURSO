@@ -15,7 +15,12 @@ export default function Equipe() {
     const fetchUsers = async () => {
         setLoading(true)
         const { data, error } = await supabase.from('users').select('*, permissions').order('created_at', { ascending: false })
-        if (!error && data) setUsers(data)
+        if (error) {
+            console.error("Erro Fetch Equipe:", error)
+            setErrorMsg("Falha na conexão: " + error.message + " (Código: " + error.code + ")")
+        } else if (data) {
+            setUsers(data)
+        }
         setLoading(false)
     }
 
