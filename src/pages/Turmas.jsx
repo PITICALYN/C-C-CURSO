@@ -35,9 +35,15 @@ export default function Turmas() {
 
     // Auto-preenchimento ao mudar o curso
     useEffect(() => {
-        if (formData.course_name.includes('Topografia') || formData.course_name.includes('TO')) {
+        const course = formData.course_name.toLowerCase()
+        if (course.includes('treinamento')) {
+            // Treinamentos são livres
+            setFormData(prev => ({ ...prev, duration: '', schedule: '' }))
+        } else if (course.includes('topografia') || course.includes('to')) {
+            // Curso Topografia Base 80h
             setFormData(prev => ({ ...prev, duration: '80', schedule: 'Seg a Sex 18h as 22h' }))
         } else {
+            // Cursos Mecânica/Caldeiraria Base 136h
             setFormData(prev => ({ ...prev, duration: '136', schedule: 'Seg a Sex 18h as 22h' }))
         }
     }, [formData.course_name])
@@ -100,7 +106,9 @@ export default function Turmas() {
         }
 
         // Validação Inteligente de Carga Horária vs Dias Úteis (Motor Fase 16)
-        if (formData.start_date && formData.predicted_end_date && formData.schedule.toLowerCase().includes('seg a sex')) {
+        const isTreinamentoLivre = formData.course_name.toLowerCase().includes('treinamento')
+
+        if (!isTreinamentoLivre && formData.start_date && formData.predicted_end_date && formData.schedule.toLowerCase().includes('seg a sex')) {
             const workingDays = countWorkingDays(formData.start_date, formData.predicted_end_date)
             // Assumindo aula noturna de 4 horas (18h às 22h) ou 8h a 17h para Sábado (mas o alerta é geral pra dias uteis)
             const availableHours = workingDays * 4
