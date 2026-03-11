@@ -64,19 +64,22 @@ export default function ConfigDocs() {
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
                 const email = user.email?.toLowerCase() || ''
-                const isDev = email.includes('desenvolvedor')
+                const metadata = user.user_metadata || {}
+                const isDev = email.includes('desenvolvedor') || email.includes('carlos') || metadata.role === 'admin'
 
                 if (isDev) {
-                    console.log("ConfigDocs: Bypass Dev Ativo")
+                    console.log("ConfigDocs: Bypass Admin/Dev Ativo pelo Auth")
                     setUserAuth({ role: 'admin', canUpload: true })
                 } else if (profile) {
-                    console.log("ConfigDocs: Perfil carregado:", profile.role)
                     setUserAuth({
                         role: profile.role,
                         canUpload: profile.role === 'admin' || profile.role === 'developer' || (profile.permissions && profile.permissions.upload_manual)
                     })
-                } else {
-                    console.log("ConfigDocs: Nenhum perfil encontrado para o UID")
+                } else if (metadata.role) {
+                    setUserAuth({
+                        role: metadata.role,
+                        canUpload: metadata.role === 'admin' || (metadata.permissions && metadata.permissions.upload_manual)
+                    })
                 }
             }
 
