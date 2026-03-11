@@ -17,16 +17,18 @@ export default function Turmas() {
         start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136'
     })
 
-    // Função para calcular dias úteis entre duas datas (ignora sábados, domingos e feriados se existissem)
-    const countWorkingDays = (startDateStr, endDateStr) => {
+    // Função flexível para contar dias do período dependendo da modalidade
+    const countCourseDays = (startDateStr, endDateStr, isSaturdayOnly) => {
         let count = 0
         let curDate = new Date(startDateStr + 'T00:00:00')
         const endDate = new Date(endDateStr + 'T00:00:00')
 
         while (curDate <= endDate) {
             const dayOfWeek = curDate.getDay() // 0 = Domingo, 6 = Sábado
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                count++
+            if (isSaturdayOnly) {
+                if (dayOfWeek === 6) count++
+            } else {
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) count++
             }
             curDate.setDate(curDate.getDate() + 1)
         }
@@ -108,14 +110,17 @@ export default function Turmas() {
         // Validação Inteligente de Carga Horária vs Dias Úteis (Motor Fase 16)
         const isTreinamentoLivre = formData.course_name.toLowerCase().includes('treinamento')
 
-        if (!isTreinamentoLivre && formData.start_date && formData.predicted_end_date && formData.schedule.toLowerCase().includes('seg a sex')) {
-            const workingDays = countWorkingDays(formData.start_date, formData.predicted_end_date)
-            // Assumindo aula noturna de 4 horas (18h às 22h) ou 8h a 17h para Sábado (mas o alerta é geral pra dias uteis)
-            const availableHours = workingDays * 4
-            const targetHours = parseInt(formData.duration.replace(/\D/g, '')) || 0 // Pega só os números
+        if (!isTreinamentoLivre && formData.start_date && formData.predicted_end_date && formData.schedule && formData.duration) {
+            const isSaturday = formData.schedule.toLowerCase().includes('sabado') || formData.schedule.toLowerCase().includes('sábado')
+            const applicableDays = countCourseDays(formData.start_date, formData.predicted_end_date, isSaturday)
+
+            // Seg-Sex tem 4h por dia. Sábado Integral tem 8h líquidas por dia (9h bruto - 1h almoço)
+            const hoursPerDay = isSaturday ? 8 : 4
+            const availableHours = applicableDays * hoursPerDay
+            const targetHours = parseInt(formData.duration.replace(/\D/g, '')) || 0
 
             if (availableHours < targetHours) {
-                const proceed = window.confirm(`ATENÇÃO CONFLITO DE GRADE!\n\nO período selecionado contém apenas ${workingDays} dias úteis (Seg-Sex), totalizando ~${availableHours} horas (base 4h/dia).\nMas a duração do curso exige ${targetHours} horas.\n\nDeseja ignorar o alerta e criar a turma mesmo assim (talvez usando Sábados Extras)?`)
+                const proceed = window.confirm(`ATENÇÃO CONFLITO DE GRADE!\n\nO período selecionado contém apenas ${applicableDays} dias de aula (Grade: ${isSaturday ? 'Sábados' : 'Seg-Sex'}), totalizando ${availableHours} horas (base ${hoursPerDay}h/dia).\nMas a duração do curso exige ${targetHours} horas.\n\nDeseja ignorar o alerta e criar a turma mesmo assim?`)
                 if (!proceed) return
             }
         }
@@ -385,7 +390,17 @@ export default function Turmas() {
                     </div>
                     <div className="form-group"><label className="form-label">Data de Início Programado</label><input type="date" className="form-control" name="start_date" value={formData.start_date} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Previsão de Término</label><input type="date" className="form-control" name="predicted_end_date" value={formData.predicted_end_date} onChange={handleFormChange} /></div>
-                    <div className="form-group"><label className="form-label">Horários Base</label><input type="text" className="form-control" name="schedule" value={formData.schedule} onChange={handleFormChange} placeholder="Ex: Seg a Sex 18h às 22h" /></div>
+                    <div className="form-group">
+                        <label className="form-label">Horários Base</label>
+                        <select className="form-control" name="schedule" value={formData.schedule} onChange={handleFormChange}>
+                            <option value="">Selecione (Ou digite se for Treinamento)</option>
+                            <option value="Seg a Sex 18h as 22h">Seg a Sex 18h às 22h</option>
+                            <option value="Sabado 08h as 17h">Sábado 08h às 17h (Integral)</option>
+                        </select>
+                        {formData.course_name.toLowerCase().includes('treinamento') && (
+                            <input type="text" className="form-control" style={{ marginTop: '0.5rem' }} name="schedule" value={formData.schedule} onChange={handleFormChange} placeholder="Ou digite o horário flexível aqui" />
+                        )}
+                    </div>
                     <div className="form-group"><label className="form-label">Carga Horária (Duração)</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleFormChange} placeholder="Ex: 80 horas" /></div>
                 </div>
             </div>
