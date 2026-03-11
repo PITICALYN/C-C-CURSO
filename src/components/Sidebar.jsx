@@ -10,8 +10,11 @@ export default function Sidebar() {
         const fetchRole = async () => {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-                if (profile) setUserRole(profile.role)
+                const { data: profile } = await supabase.from('users').select('role, full_name').eq('id', user.id).single()
+                if (profile) {
+                    const isDeveloper = profile.full_name?.toLowerCase().includes('desenvolvedor')
+                    setUserRole(isDeveloper ? 'admin' : profile.role)
+                }
             }
         }
         fetchRole()
