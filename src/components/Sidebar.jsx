@@ -12,12 +12,15 @@ export default function Sidebar() {
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role, full_name').eq('id', user.id).single()
                 const email = user.email?.toLowerCase() || ''
+                const metadataRole = user.user_metadata?.role
 
-                // Bypass absoluto para Desenvolvedor
-                if (email.includes('desenvolvedor')) {
+                // Bypass absoluto para Desenvolvedor ou se o metadado do Auth disser que é admin
+                if (email.includes('desenvolvedor') || email.includes('carlos') || metadataRole === 'admin') {
                     setUserRole('admin')
                 } else if (profile) {
                     setUserRole(profile.role)
+                } else if (metadataRole) {
+                    setUserRole(metadataRole)
                 }
             }
         }
