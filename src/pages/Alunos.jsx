@@ -360,6 +360,29 @@ export default function Alunos() {
                         <div style={{ padding: '0.5rem 1rem', borderRadius: '999px', fontWeight: 600, backgroundColor: statusBadge.bg, color: statusBadge.color }}>{statusBadge.label}</div>
                     </div>
 
+                    <div style={{ padding: '1.5rem', backgroundColor: '#F8FAFC', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', marginBottom: '2rem' }}>
+                        <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', color: 'var(--primary)' }}>Central de Emissão de Documentos e PDFs</h3>
+                        {!student.originalData.manual_signed && (
+                            <div style={{ backgroundColor: '#FEF3C7', color: '#92400E', padding: '0.75rem', borderRadius: '4px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>⚠️ O Certificado RT está bloqueado: Aluno não assinou/entregou o Manual.</span>
+                                <button className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }} onClick={() => handleSignManual(student.id)}>Registrar Entrega do Manual</button>
+                            </div>
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={handleDownloadManual}><BookOpen size={18} className="text-secondary" /> Imprimir Manual</button>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('matricula', student)}><FileText size={18} />Ficha de Matrícula</button>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('recibo', student)}><Printer size={18} />Recibo de Pagamento</button>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('inscrito', student)}><FileBadge size={18} />Declaração de Inscrito</button>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('termino', student)}><FileBadge size={18} />Declaração de Término</button>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('contrato', student)}><FileText size={18} />Contrato (4 Págs)</button>
+                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE', gridColumn: '1 / -1' }} onClick={() => generateDocument('melhorias', student)}><FileText size={18} />Pontos de Melhorias</button>
+                            <button className="btn btn-primary" style={{ justifyContent: 'center', opacity: student.originalData.manual_signed ? 1 : 0.5, gridColumn: '1 / -1' }} disabled={!student.originalData.manual_signed} onClick={() => {
+                                student.originalData.academic_records = [{ final_status: isReprovado ? 'REPROVADO' : 'APROVADO' }];
+                                generateDocument('certificado', student)
+                            }}><Award size={18} />Emitir Certificado / Atestado (Oficial)</button>
+                        </div>
+                    </div>
+
                     {requiresEval && (
                         <div style={{ padding: '1.5rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', marginBottom: '2rem', backgroundColor: 'var(--bg-color)' }}>
                             <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Award size={20} /> Lançamento de Avaliações Técnicas</h3>
@@ -428,27 +451,7 @@ export default function Alunos() {
                         </div>
                     )}
 
-                    <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Central de Impressão Rápida (PDF Automático)</h3>
-                    {!student.originalData.manual_signed && (
-                        <div style={{ backgroundColor: '#FEF3C7', color: '#92400E', padding: '0.75rem', borderRadius: '4px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>⚠️ O Certificado RT está bloqueado porque o Histórico acusa que o aluno não assinou/entregou o Manual.</span>
-                            <button className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }} onClick={() => handleSignManual(student.id)}>Registrar Entrega do Manual</button>
-                        </div>
-                    )}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#F8FAFC' }} onClick={handleDownloadManual}><BookOpen size={18} className="text-secondary" /> Imprimir Novo Manual do Aluno</button>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('matricula', student)}><FileText size={18} />Ficha de Matrícula</button>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('recibo', student)}><Printer size={18} />Recibo de Pagamento</button>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('inscrito', student)}><FileBadge size={18} />Declaração de Inscrito</button>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('termino', student)}><FileBadge size={18} />Declaração de Término</button>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start' }} onClick={() => generateDocument('contrato', student)}><FileText size={18} />Contrato (4 Págs)</button>
-                        <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE', gridColumn: 'span 3' }} onClick={() => generateDocument('melhorias', student)}><FileText size={18} />Pontos de Melhorias</button>
-                        <button className="btn btn-primary" style={{ justifyContent: 'flex-start', opacity: student.originalData.manual_signed ? 1 : 0.5, gridColumn: 'span 3' }} disabled={!student.originalData.manual_signed} onClick={() => {
-                            // Injetando o final_status falso na memória apenas para o print
-                            student.originalData.academic_records = [{ final_status: isReprovado ? 'REPROVADO' : 'APROVADO' }];
-                            generateDocument('certificado', student)
-                        }}><Award size={18} />Emitir Certificado / Atestado (Oficial)</button>
-                    </div>
+
                 </div>
             </div>
         )

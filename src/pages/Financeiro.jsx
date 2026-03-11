@@ -28,12 +28,22 @@ export default function Financeiro() {
             // Fetch Classes for Split
             const { data: clsData } = await supabase.from('classes').select('*, students(count)')
 
+            // Fetch Recent Students to simulate PIX Installments (Mocking real names)
+            const { data: stdData } = await supabase.from('students').select('*').order('created_at', { ascending: false }).limit(10)
+
+            let dynamicPix = []
+            if (stdData) {
+                dynamicPix = stdData.map(s => ({
+                    id: s.id,
+                    student: s.full_name,
+                    amount: s.base_value > 0 ? s.base_value / 3 : 500, // Simulando 3 parcelas
+                    date: s.created_at.split('T')[0], // Simulating due date as enroll date for D-1 alerts
+                    status: 'Aguardando Checagem'
+                }))
+            }
+
             setTransactions({
-                pix: [
-                    // Mock temporarily while we build the installment JSON logic for Students
-                    { id: 1, student: 'João Guilherme Silva', amount: 1500, date: '2026-10-10', status: 'Aguardando Checagem' },
-                    { id: 2, student: 'Maria Oliveira Gomes', amount: 1500, date: '2026-10-15', status: 'Aguardando Checagem' }
-                ],
+                pix: dynamicPix,
                 payables: costsData || [],
                 classesData: clsData || []
             })
