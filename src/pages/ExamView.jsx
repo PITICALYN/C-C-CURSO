@@ -124,7 +124,11 @@ export default function ExamView() {
                                     <img src={q.image_url} alt="Ilustração da questão" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0' }} />
                                 )}
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: q.options.length > 3 ? '1fr 1fr' : '1fr', 
+                                gap: '1rem' 
+                            }}>
                                 {q.options.map((option, oidx) => {
                                     const hasImage = typeof option === 'object' && option.image_url;
                                     const optText = typeof option === 'object' ? option.text : option;

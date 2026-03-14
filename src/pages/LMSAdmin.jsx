@@ -406,20 +406,19 @@ export default function LMSAdmin() {
 
     const continueWithQuestion = async (text, qImage) => {
         const options = []
-        for (let i = 0; i < 4; i++) {
-            const optText = window.prompt(`Texto da Opção ${String.fromCharCode(65+i)}:`)
+        for (let i = 0; i < 5; i++) {
+            const letter = String.fromCharCode(65+i)
+            const optText = window.prompt(`Texto da Opção ${letter} (Deixe vazio para encerrar):`)
+            
             if (!optText && i < 2) {
-                alert('Pelo menos duas opções são obrigatórias.')
+                alert('Pelo menos duas opções são obrigatórias (A e B).')
                 return
             }
             if (!optText) break
             
             let optImage = null
-            if (window.confirm(`Deseja anexar uma imagem à OPÇÃO ${String.fromCharCode(65+i)}?`)) {
-                // Infelizmente prompt/confirm síncrono trava o event loop para uploads pesados.
-                // Mas para MVP de admin funciona. 
+            if (window.confirm(`Deseja anexar uma imagem à OPÇÃO ${letter}?`)) {
                 alert('Selecione o arquivo para esta opção na próxima janela.')
-                // Simulação de input file
                 const file = await new Promise(resolve => {
                     const input = document.createElement('input')
                     input.type = 'file'
@@ -432,7 +431,7 @@ export default function LMSAdmin() {
             options.push({ text: optText, image_url: optImage })
         }
 
-        const correct = window.prompt('Qual é a correta (0 para A, 1 para B, etc)?', '0')
+        const correct = window.prompt(`Qual é a correta (0 para A, 1 para B, 2 para C, 3 para D, 4 para E)?`, '0')
 
         const { error } = await supabase
             .from('lms_questions')
@@ -628,8 +627,12 @@ export default function LMSAdmin() {
                                         </div>
                                         <Trash2 size={16} style={{ color: 'var(--danger)', cursor: 'pointer', flexShrink: 0 }} onClick={() => handleDeleteQuestion(q.id)} />
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                        {q.options.map((opt, oidx) => (
+                                        <div style={{ 
+                                            display: 'grid', 
+                                            gridTemplateColumns: q.options.length > 3 ? '1fr 1fr' : '1fr', 
+                                            gap: '0.75rem' 
+                                        }}>
+                                            {q.options.map((opt, oidx) => (
                                             <div key={oidx} style={{ 
                                                 fontSize: '0.85rem', 
                                                 padding: '0.75rem',
