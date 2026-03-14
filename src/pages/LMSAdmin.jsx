@@ -304,6 +304,8 @@ export default function LMSAdmin() {
         const title = window.prompt('Título da Prova/Exercício:', 'Avaliação de Conhecimento')
         if (!title) return
 
+        const minutes = window.prompt('Tempo Limite (em minutos). Digite 0 para sem limite:', '60')
+
         const { data, error } = await supabase
             .from('lms_quizzes')
             .insert([{ 
@@ -311,7 +313,8 @@ export default function LMSAdmin() {
                 module_id: moduleId, 
                 title,
                 passing_grade: 70,
-                max_attempts: 3
+                max_attempts: 3,
+                time_limit_minutes: parseInt(minutes) || 0
             }])
             .select()
             .single()
@@ -610,7 +613,10 @@ export default function LMSAdmin() {
                                 <h3 style={{ fontSize: '1.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <CheckSquare size={20} /> Questões: {selectedQuiz?.title}
                                 </h3>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Média para aprovação: {selectedQuiz?.passing_grade}%</p>
+                                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Média para aprovação: {selectedQuiz?.passing_grade}%</p>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tempo: {selectedQuiz?.time_limit_minutes > 0 ? `${selectedQuiz.time_limit_minutes} min` : 'Sem limite'}</p>
+                                </div>
                             </div>
                             <button className="btn" onClick={() => setIsEditingQuiz(false)}>Fechar</button>
                         </div>

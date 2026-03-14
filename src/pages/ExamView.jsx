@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { CheckCircle, XCircle, AlertCircle, RefreshCcw } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, RefreshCcw, Clock } from 'lucide-react'
 
 export default function ExamView() {
     const { quizId } = useParams()
@@ -16,6 +16,8 @@ export default function ExamView() {
     const [score, setScore] = useState(0)
     const [attemptsCount, setAttemptsCount] = useState(0)
     const [loading, setLoading] = useState(true)
+    const [timeLeft, setTimeLeft] = useState(null) // em segundos
+    const [showTimeWarning, setShowTimeWarning] = useState(false)
 
     // ANTI-FRAUDE: Bloqueios
     useEffect(() => {
@@ -65,17 +67,25 @@ export default function ExamView() {
             setStatus('blocked')
             return
         }
+        
+        if (quiz?.time_limit_minutes > 0) {
+            setTimeLeft(quiz.time_limit_minutes * 60)
+        }
+        
         setStatus('active')
         setAnswers({})
     }
 
     const handleSubmit = async () => {
+        // Impedir cliques duplos se já estiver enviando
+        if (status === 'result') return
+
         let correctCount = 0
         questions.forEach(q => {
             if (answers[q.id] === q.correct_option_index) correctCount++
         })
         
-        const finalScore = Math.round((correctCount / questions.length) * 100)
+        const finalScore = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
         const approved = finalScore >= (quiz?.passing_grade || 70)
         const newAttempts = attemptsCount + 1
 
@@ -91,7 +101,39 @@ export default function ExamView() {
             setScore(finalScore)
             setAttemptsCount(newAttempts)
             setStatus('result')
+            setTimeLeft(null)
         }
+    }
+
+    // Cronômetro
+    useEffect(() => {
+        let timer = null
+        if (status === 'active' && timeLeft !== null) {
+            timer = setInterval(() => {
+                setTimeLeft(prev => {
+                    if (prev <= 1) {
+                        clearInterval(timer)
+                        handleSubmit() // Envio automático
+                        return 0
+                    }
+                    
+                    // Alerta de 10%
+                    const totalSec = quiz.time_limit_minutes * 60
+                    if (prev <= totalSec * 0.1 && !showTimeWarning) {
+                        setShowTimeWarning(true)
+                    }
+                    
+                    return prev - 1
+                })
+            }, 1000)
+        }
+        return () => clearInterval(timer)
+    }, [status, timeLeft])
+
+    const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60)
+        const s = seconds % 60
+        return `${m}:${s.toString().padStart(2, '0')}`
     }
 
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Carregando exame...</div>
@@ -115,7 +157,21 @@ export default function ExamView() {
 
             {status === 'active' && (
                 <div className="animate-fade-in">
-                    <h2 style={{ marginBottom: '2rem' }}>{quiz.title}</h2>
+                    <div style={{ position: 'sticky', top: '1rem', zIndex: 100, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '1rem', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginBottom: '2rem', border: showTimeWarning ? '2px solid #ef4444' : '1px solid #e2e8f0' }}>
+                        <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{quiz.title}</h2>
+                        {timeLeft !== null && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: showTimeWarning ? '#ef4444' : 'inherit', fontWeight: 700 }}>
+                                <Clock size={20} className={showTimeWarning ? 'animate-pulse' : ''} />
+                                <span style={{ fontSize: '1.25rem' }}>{formatTime(timeLeft)}</span>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {showTimeWarning && (
+                        <div style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 600, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                            <AlertCircle size={16} /> Atenção! Restam menos de 10% do tempo.
+                        </div>
+                    )}
                     {questions.map((q, idx) => (
                         <div key={q.id} className="card" style={{ marginBottom: '1.5rem' }}>
                             <div style={{ marginBottom: '1rem' }}>
