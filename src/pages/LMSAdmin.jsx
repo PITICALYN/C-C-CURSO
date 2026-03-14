@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare } from 'lucide-react'
 
 export default function LMSAdmin() {
+    const navigate = useNavigate()
     const [courses, setCourses] = useState([])
     const [loading, setLoading] = useState(true)
     const [view, setView] = useState('list') // list | add_course | manage_course
@@ -373,6 +375,20 @@ export default function LMSAdmin() {
         }
     }
 
+    const handlePreviewCourse = () => {
+        if (!selectedCourse || modules.length === 0) return alert('Este curso ainda não possui módulos.')
+        
+        // Pegar a primeira aula do primeiro módulo
+        const firstModId = modules[0].id
+        const firstLesson = lessons[firstModId]?.[0]
+        
+        if (firstLesson) {
+            navigate(`/curso/${selectedCourse.id}/aula/${firstLesson.id}`)
+        } else {
+            alert('Crie pelo menos uma aula no primeiro módulo para visualizar.')
+        }
+    }
+
     const renderManageCourse = () => (
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -396,7 +412,7 @@ export default function LMSAdmin() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-secondary" onClick={() => alert('Em breve: Ver área do aluno')}><ChevronRight size={16} /> Ver como Aluno</button>
+                    <button className="btn btn-secondary" onClick={handlePreviewCourse}><ChevronRight size={16} /> Ver como Aluno</button>
                     <button className="btn btn-primary" onClick={handleCreateModule}><Plus size={16} /> Novo Módulo</button>
                 </div>
             </div>
