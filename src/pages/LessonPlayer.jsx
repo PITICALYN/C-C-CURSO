@@ -17,6 +17,7 @@ export default function LessonPlayer() {
     const [lessonStatus, setLessonStatus] = useState({}) // { lessonId: { is_completed, watched_seconds } }
     const [quizStatus, setQuizStatus] = useState({}) // { quizId: { is_approved, score } }
     const [courseQuizzes, setCourseQuizzes] = useState([])
+    const [loading, setLoading] = useState(true)
     
     const timerRef = useRef(null)
 
@@ -38,6 +39,7 @@ export default function LessonPlayer() {
     }, [])
 
     const fetchData = async () => {
+        if (!session?.user?.id) return
         setLoading(true)
         // Buscar detalhes da aula atual
         const { data: lessonData } = await supabase
@@ -324,7 +326,7 @@ export default function LessonPlayer() {
                                 
                                 {isLastInModule && moduleQuiz && (
                                     <div 
-                                        onClick={() => navigate(`/prova/${moduleQuiz.id}`)}
+                                        onClick={() => navigate(`/exame/${moduleQuiz.id}`)}
                                         style={{ 
                                             padding: '0.75rem 1.5rem', 
                                             backgroundColor: (moduleQuiz.quiz_type === 'final_exam' ? quizStatus[moduleQuiz.id]?.is_approved : quizStatus[moduleQuiz.id]?.attempts_count > 0)
