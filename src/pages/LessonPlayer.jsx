@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight, FileText } from 'lucide-react'
+import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight, FileText, Trophy, Video } from 'lucide-react'
 
 export default function LessonPlayer() {
     const { courseId, lessonId } = useParams()
@@ -72,7 +72,11 @@ export default function LessonPlayer() {
                 .eq('student_id', session.user.id)
             
             const qMap = {}
-            qres?.forEach(r => qMap[r.quiz_id] = { is_approved: r.is_approved, score: r.score })
+            qres?.forEach(r => qMap[r.quiz_id] = { 
+                is_approved: r.is_approved, 
+                score: r.score,
+                attempts_count: r.attempts_count 
+            })
             setQuizStatus(qMap)
 
             // Buscar progresso do aluno para todas as aulas do curso
@@ -177,10 +181,16 @@ export default function LessonPlayer() {
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                         ></iframe>
+                    ) : lesson.pdf_url ? (
+                        <iframe 
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', backgroundColor: 'white' }}
+                            src={lesson.pdf_url}
+                            title="Documento da Aula"
+                        ></iframe>
                     ) : (
                         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
                             <Video size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
-                            <p>Esta aula não possui vídeo vinculado.</p>
+                            <p>Esta aula não possui conteúdo (Vídeo/PDF) vinculado.</p>
                         </div>
                     )}
                 </div>
@@ -273,9 +283,14 @@ export default function LessonPlayer() {
                         let isBlockedByQuiz = false
                         for (const modId of previousModules) {
                             const modQuiz = courseQuizzes.find(q => q.module_id === modId)
-                            if (modQuiz && !quizStatus[modQuiz.id]?.is_approved) {
-                                isBlockedByQuiz = true
-                                break
+                            if (modQuiz) {
+                                const qStat = quizStatus[modQuiz.id]
+                                if (modQuiz.quiz_type === 'final_exam') {
+                                    if (!qStat?.is_approved) { isBlockedByQuiz = true; break; }
+                                } else {
+                                    // Exercício: LIBERA se tiver pelo menos 1 tentativa (realizado)
+                                    if (!qStat || qStat.attempts_count === 0) { isBlockedByQuiz = true; break; }
+                                }
                             }
                         }
 
@@ -312,18 +327,24 @@ export default function LessonPlayer() {
                                         onClick={() => navigate(`/prova/${moduleQuiz.id}`)}
                                         style={{ 
                                             padding: '0.75rem 1.5rem', 
-                                            backgroundColor: quizStatus[moduleQuiz.id]?.is_approved ? '#064e3b' : '#1e293b',
+                                            backgroundColor: (moduleQuiz.quiz_type === 'final_exam' ? quizStatus[moduleQuiz.id]?.is_approved : quizStatus[moduleQuiz.id]?.attempts_count > 0)
+                                                ? (moduleQuiz.quiz_type === 'final_exam' ? '#4c1d95' : '#064e3b') 
+                                                : '#1e293b',
                                             borderBottom: '1px solid #334155',
                                             cursor: 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '0.75rem',
-                                            color: quizStatus[moduleQuiz.id]?.is_approved ? '#10b981' : '#fbbf24'
+                                            color: (moduleQuiz.quiz_type === 'final_exam' ? quizStatus[moduleQuiz.id]?.is_approved : quizStatus[moduleQuiz.id]?.attempts_count > 0)
+                                                ? '#10b981' 
+                                                : (moduleQuiz.quiz_type === 'final_exam' ? '#a855f7' : '#fbbf24')
                                         }}
                                     >
-                                        <FileText size={14} />
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{moduleQuiz.title}</span>
-                                        {quizStatus[moduleQuiz.id]?.is_approved ? (
+                                        {moduleQuiz.quiz_type === 'final_exam' ? <Trophy size={14} /> : <FileText size={14} />}
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                            {moduleQuiz.quiz_type === 'final_exam' ? 'PROVA FINAL' : 'EXERCÍCIO'}
+                                        </span>
+                                        { (moduleQuiz.quiz_type === 'final_exam' ? quizStatus[moduleQuiz.id]?.is_approved : quizStatus[moduleQuiz.id]?.attempts_count > 0) ? (
                                             <CheckCircle size={14} style={{ marginLeft: 'auto' }} />
                                         ) : (
                                             <Lock size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />

@@ -315,14 +315,48 @@ export default function LMSAdmin() {
     const handleCreateLesson = async (moduleId) => {
         const title = window.prompt('Título da Aula:')
         if (!title) return
-        const video_url = window.prompt('URL do Vídeo (YouTube/Vimeo):')
+
+        const type = window.confirm('Deseja adicionar um VÍDEO? (Clique em OK para Vídeo ou em CANCELAR para escolher um arquivo PDF)')
+        
+        let video_url = null
+        let pdf_url = null
+
+        if (type) {
+            video_url = window.prompt('URL do Vídeo (YouTube/Vimeo):')
+            if (!video_url) return
+        } else {
+            alert('Selecione o arquivo PDF na próxima janela.')
+            const file = await new Promise(resolve => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '.pdf'
+                input.onchange = (e) => resolve(e.target.files[0])
+                input.click()
+            })
+            if (!file) return
+
+            // Upload PDF
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${fileExt}`
+            const filePath = `lessons/${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('lms-docs')
+                .upload(filePath, file)
+            
+            if (uploadError) return alert('Erro no upload do PDF: ' + uploadError.message)
+
+            const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(filePath)
+            pdf_url = publicUrl
+        }
 
         const { error } = await supabase
             .from('lms_lessons')
             .insert([{ 
                 module_id: moduleId, 
                 title, 
-                video_url, 
+                video_url: video_url || null, 
+                pdf_url: pdf_url || null,
                 min_watch_time_sec: (parseInt(window.prompt('Tempo mínimo de estudo p/ esta aula (MINUTOS):', '10')) || 0) * 60,
                 order_index: (lessons[moduleId]?.length || 0) 
             }])
@@ -342,16 +376,43 @@ export default function LMSAdmin() {
         else fetchCourseDetails(selectedCourse.id)
     }
 
-    const handleEditLesson = async (lesson) => {
+    const handleEditLessonFull = async (lesson) => {
         const newTitle = window.prompt('Novo título da aula:', lesson.title)
         if (!newTitle) return
-        
+
+        let video_url = lesson.video_url
+        let pdf_url = lesson.pdf_url
+
+        if (window.confirm('Deseja alterar o conteúdo (Vídeo/PDF)?')) {
+            const type = window.confirm('Novo conteúdo será VÍDEO? (Cancelar para PDF)')
+            if (type) {
+                video_url = window.prompt('URL do Vídeo:', video_url || '')
+                pdf_url = null
+            } else {
+                const file = await new Promise(resolve => {
+                    const input = document.createElement('input')
+                    input.type = 'file'; input.accept = '.pdf'
+                    input.onchange = (e) => resolve(e.target.files[0]); input.click()
+                })
+                if (file) {
+                    const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${file.name.split('.').pop()}`
+                    const { data, error } = await supabase.storage.from('lms-docs').upload(`lessons/${fileName}`, file)
+                    if (!error) {
+                        const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(`lessons/${fileName}`)
+                        pdf_url = publicUrl; video_url = null
+                    }
+                }
+            }
+        }
+
         const newTime = window.prompt('Tempo mínimo de estudo (EM MINUTOS):', Math.round((lesson.min_watch_time_sec || 0) / 60))
         
         const { error } = await supabase
             .from('lms_lessons')
             .update({ 
                 title: newTitle,
+                video_url,
+                pdf_url,
                 min_watch_time_sec: (parseInt(newTime) || 0) * 60
             })
             .eq('id', lesson.id)
@@ -386,6 +447,7 @@ export default function LMSAdmin() {
                 course_id: selectedCourse.id, 
                 module_id: moduleId, 
                 title,
+                quiz_type: window.confirm('Este teste é a PROVA FINAL do curso? (Clique em Cancelar para Exercício de Módulo)') ? 'final_exam' : 'exercise',
                 passing_grade: 70,
                 max_attempts: 3,
                 time_limit_minutes: parseInt(minutes) || 0
@@ -651,10 +713,14 @@ export default function LMSAdmin() {
                             {lessons[mod.id]?.map((lesson, lidx) => (
                                 <div key={lesson.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderBottom: lidx === lessons[mod.id].length - 1 ? 'none' : '1px solid #f1f5f9' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)' }}>
-                                        <Video size={16} />
+                                        {lesson.video_url ? <Video size={16} /> : <FileText size={16} />}
                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                                             <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{lesson.title}</span>
-                                            {lesson.video_url && <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Video: {lesson.video_url}</span>}
+                                            {lesson.video_url ? (
+                                                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Video: {lesson.video_url}</span>
+                                            ) : (
+                                                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Documento: PDF anexado</span>
+                                            )}
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -662,7 +728,7 @@ export default function LMSAdmin() {
                                             size={14} 
                                             className="text-muted" 
                                             style={{ cursor: 'pointer' }} 
-                                            onClick={() => handleEditLesson(lesson)}
+                                            onClick={() => handleEditLessonFull(lesson)}
                                         />
                                         <Trash2 
                                             size={14} 
@@ -683,10 +749,13 @@ export default function LMSAdmin() {
                             <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
                                 {quizzes[mod.id] ? (
                                     <div style={{ padding: '0.75rem', backgroundColor: '#F0F9FF', borderRadius: '6px', border: '1px solid #BAE6FD', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#0369A1' }}>
-                                            <CheckSquare size={16} />
-                                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{quizzes[mod.id].title}</span>
-                                        </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: quizzes[mod.id].quiz_type === 'final_exam' ? '#9333ea' : '#0369A1' }}>
+                                                {quizzes[mod.id].quiz_type === 'final_exam' ? <Trophy size={16} /> : <CheckSquare size={16} />}
+                                                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                                                    {quizzes[mod.id].quiz_type === 'final_exam' ? '🏆 PROVA FINAL: ' : '📝 EXERCÍCIO: '} 
+                                                    {quizzes[mod.id].title}
+                                                </span>
+                                            </div>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                                             <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', backgroundColor: '#fff' }} onClick={() => handleManageQuiz(quizzes[mod.id])}>Gerenciar Questões</button>
                                             <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', color: 'var(--danger)' }} onClick={async () => {

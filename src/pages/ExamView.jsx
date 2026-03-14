@@ -55,6 +55,7 @@ export default function ExamView() {
             
             if (results) {
                 setAttemptsCount(results.attempts_count)
+                setScore(results.score || 0) // Carregar score anterior
                 if (results.is_approved) setStatus('result')
                 else if (results.attempts_count >= quizData.max_attempts) setStatus('blocked')
             }
@@ -86,13 +87,16 @@ export default function ExamView() {
         })
         
         const finalScore = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
-        const approved = finalScore >= (quiz?.passing_grade || 70)
+        
+        // Regra de Melhor Nota: Mantém a maior entre a atual e a anterior
+        const bestScore = Math.max(finalScore, score)
+        const approved = bestScore >= (quiz?.passing_grade || 70)
         const newAttempts = attemptsCount + 1
 
         const { error } = await supabase.from('lms_quiz_results').upsert({
             student_id: session.user.id,
             quiz_id: quizId,
-            score: finalScore,
+            score: bestScore,
             attempts_count: newAttempts,
             is_approved: approved
         }, { onConflict: ['student_id', 'quiz_id'] })
@@ -144,8 +148,13 @@ export default function ExamView() {
             {status === 'intro' && (
                 <div className="card text-center" style={{ padding: '3rem' }}>
                     <AlertCircle size={48} className="text-warning" style={{ margin: '0 auto 1.5rem' }} />
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{quiz.title}</h2>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                        {quiz.quiz_type === 'final_exam' ? '🏆 Prova Final:' : '📝 Exercício:'} {quiz.title}
+                    </h2>
                     <p className="text-secondary" style={{ marginTop: '1rem' }}>
+                        {quiz.quiz_type === 'final_exam' 
+                            ? 'Esta é a avaliação final do curso. ' 
+                            : 'Este exercício ajudará a fixar o conteúdo do módulo. '}
                         Para aprovação, você precisa de no mínimo <strong>{quiz.passing_grade}%</strong> de acerto.
                         <br />Você tem <strong>{quiz.max_attempts - attemptsCount}</strong> tentativas restantes.
                     </p>
@@ -245,7 +254,9 @@ export default function ExamView() {
                     ) : (
                         <>
                             <XCircle size={64} style={{ color: '#ef4444', margin: '0 auto 1.5rem' }} />
-                            <h2 style={{ color: '#991b1b' }}>Não foi desta vez.</h2>
+                            <h2 style={{ color: '#991b1b' }}>
+                                {quiz.quiz_type === 'final_exam' ? 'Não aprovado na prova final.' : 'Exercício não superado.'}
+                            </h2>
                         </>
                     )}
                     <div style={{ margin: '2rem 0', padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
