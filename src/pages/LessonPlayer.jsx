@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ChevronLeft, Lock, CheckCircle, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight } from 'lucide-react'
 
 export default function LessonPlayer() {
     const { courseId, lessonId } = useParams()
@@ -12,9 +12,9 @@ export default function LessonPlayer() {
     const [lesson, setLesson] = useState(null)
     const [course, setCourse] = useState(null)
     const [allLessons, setAllLessons] = useState([])
-    const [loading, setLoading] = useState(true)
     const [secondsWatched, setSecondsWatched] = useState(0)
     const [isCompleted, setIsCompleted] = useState(false)
+    const [lessonStatus, setLessonStatus] = useState({}) // { lessonId: { is_completed, watched_seconds } }
     
     const timerRef = useRef(null)
 
@@ -48,13 +48,31 @@ export default function LessonPlayer() {
             setLesson(lessonData)
             setCourse(lessonData.lms_modules.lms_courses)
             
-            // Buscar todas as aulas do curso para navegação lateral
+            // Buscar todas as aulas do curso
             const { data: lessons } = await supabase
                 .from('lms_lessons')
-                .select('id, title, module_id, order_index')
+                .select('*, module_id')
                 .order('order_index', { ascending: true })
             
             setAllLessons(lessons || [])
+
+            // Buscar progresso do aluno para todas as aulas do curso
+            const { data: progress } = await supabase
+                .from('lms_student_progress')
+                .select('*')
+                .eq('student_id', session.user.id)
+            
+            const statusMap = {}
+            progress?.forEach(p => {
+                statusMap[p.lesson_id] = { is_completed: p.is_completed, watched_seconds: p.watched_seconds }
+            })
+            setLessonStatus(statusMap)
+
+            // Inicializar cronômetro da aula atual com o tempo já assistido
+            if (statusMap[lessonId]) {
+                setSecondsWatched(statusMap[lessonId].watched_seconds || 0)
+                setIsCompleted(statusMap[lessonId].is_completed || false)
+            }
         }
         setLoading(false)
     }
@@ -164,15 +182,32 @@ export default function LessonPlayer() {
                         {lesson.content_text || 'Assista ao vídeo acima para concluir esta lição.'}
                     </p>
 
-                    {!isCompleted && lesson.min_watch_time_sec > 0 && (
-                        <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', color: '#fbbf24' }}>
-                            <AlertTriangle size={24} />
-                            <div>
-                                <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>Conteúdo Bloqueado</p>
-                                <p style={{ fontSize: '0.75rem', opacity: 0.8 }}>Você precisa assistir pelo menos {lesson.min_watch_time_sec} segundos para liberar o próximo módulo.</p>
+                    {/* BOTÃO DE PRÓXIMA AULA */}
+                    <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        {!isCompleted ? (
+                            <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', color: '#fbbf24' }}>
+                                <Clock size={20} className="animate-spin" />
+                                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                                    Aguarde mais {lesson.min_watch_time_sec - secondsWatched} segundos para prosseguir.
+                                </span>
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <button 
+                                onClick={() => {
+                                    const currentIndex = allLessons.findIndex(l => l.id === lessonId)
+                                    if (currentIndex < allLessons.length - 1) {
+                                        navigate(`/curso/${courseId}/aula/${allLessons[currentIndex+1].id}`)
+                                    } else {
+                                        alert('Parabéns! Você concluiu todas as lições deste curso.')
+                                    }
+                                }}
+                                className="btn btn-primary"
+                                style={{ padding: '0.75rem 2rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                            >
+                                Próxima Aula <ChevronRight size={18} />
+                            </button>
+                        )}
+                    </div>
 
                     {/* FÓRUM DE DÚVIDAS */}
                     <div style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid #334155' }}>
@@ -207,24 +242,34 @@ export default function LessonPlayer() {
                     <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '0.25rem' }}>{course?.title}</p>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {allLessons.map((l, idx) => (
-                        <div 
-                            key={l.id} 
-                            onClick={() => navigate(`/curso/${courseId}/aula/${l.id}`)}
-                            style={{ 
-                                padding: '1rem 1.5rem', 
-                                borderBottom: '1px solid #334155', 
-                                cursor: 'pointer',
-                                backgroundColor: l.id === lessonId ? '#0f172a' : 'transparent',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.75rem'
-                            }}
-                        >
-                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{idx + 1}.</span>
-                            <span style={{ fontSize: '0.875rem', color: l.id === lessonId ? 'white' : '#94a3b8' }}>{l.title}</span>
-                        </div>
-                    ))}
+                    {allLessons.map((l, idx) => {
+                        const isCurrent = l.id === lessonId
+                        const isDone = lessonStatus[l.id]?.is_completed
+                        const isLocked = idx > 0 && !lessonStatus[allLessons[idx-1].id]?.is_completed && !isDone
+                        
+                        return (
+                            <div 
+                                key={l.id} 
+                                onClick={() => !isLocked && navigate(`/curso/${courseId}/aula/${l.id}`)}
+                                style={{ 
+                                    padding: '1rem 1.5rem', 
+                                    borderBottom: '1px solid #334155', 
+                                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                                    backgroundColor: isCurrent ? '#0f172a' : 'transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                    opacity: isLocked ? 0.5 : 1
+                                }}
+                            >
+                                <span style={{ fontSize: '0.75rem', color: isDone ? '#10b981' : '#64748b' }}>
+                                    {isDone ? <CheckCircle size={14} /> : `${idx + 1}.`}
+                                </span>
+                                <span style={{ fontSize: '0.875rem', color: isCurrent ? 'white' : '#94a3b8', flex: 1 }}>{l.title}</span>
+                                {isLocked && <Lock size={14} style={{ color: '#64748b' }} />}
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
         </div>
