@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit } from 'lucide-react'
+import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare } from 'lucide-react'
 
 export default function LMSAdmin() {
     const [courses, setCourses] = useState([])
@@ -11,6 +11,10 @@ export default function LMSAdmin() {
     const [lessons, setLessons] = useState({}) // { moduleId: [lessons] }
     const [prices, setPrices] = useState([])
     const [pricingView, setPricingView] = useState(false) // Toggle para aba de preços
+    const [quizzes, setQuizzes] = useState({}) // { moduleId: quizObj }
+    const [selectedQuiz, setSelectedQuiz] = useState(null)
+    const [quizQuestions, setQuizQuestions] = useState([])
+    const [isEditingQuiz, setIsEditingQuiz] = useState(false)
 
     const [courseForm, setCourseForm] = useState({
         title: '',
@@ -51,6 +55,19 @@ export default function LMSAdmin() {
                 if (!lessError) lessonsData[mod.id] = less || []
             }
             setLessons(lessonsData)
+
+            // Buscar quizzes para cada módulo
+            const quizzesData = {}
+            for (const mod of mods) {
+                const { data: qz, error: qzError } = await supabase
+                    .from('lms_quizzes')
+                    .select('*')
+                    .eq('module_id', mod.id)
+                    .single()
+                
+                if (!qzError && qz) quizzesData[mod.id] = qz
+            }
+            setQuizzes(quizzesData)
         }
     }
 
@@ -281,6 +298,68 @@ export default function LMSAdmin() {
         else fetchCourseDetails(selectedCourse.id)
     }
 
+    const handleCreateQuiz = async (moduleId) => {
+        const title = window.prompt('Título da Prova/Exercício:', 'Avaliação de Conhecimento')
+        if (!title) return
+
+        const { data, error } = await supabase
+            .from('lms_quizzes')
+            .insert([{ 
+                course_id: selectedCourse.id, 
+                module_id: moduleId, 
+                title,
+                passing_grade: 70,
+                max_attempts: 3
+            }])
+            .select()
+            .single()
+        
+        if (error) alert('Erro ao criar quiz: ' + error.message)
+        else fetchCourseDetails(selectedCourse.id)
+    }
+
+    const handleManageQuiz = async (quiz) => {
+        setSelectedQuiz(quiz)
+        setIsEditingQuiz(true)
+        const { data, error } = await supabase
+            .from('lms_questions')
+            .select('*')
+            .eq('quiz_id', quiz.id)
+        
+        if (!error) setQuizQuestions(data || [])
+    }
+
+    const handleAddQuestion = async () => {
+        const text = window.prompt('Enunciado da Questão:')
+        if (!text) return
+        
+        const q1 = window.prompt('Opção A:')
+        const q2 = window.prompt('Opção B:')
+        const q3 = window.prompt('Opção C:')
+        const q4 = window.prompt('Opção D:')
+        const correct = window.prompt('Qual é a correta (0 para A, 1 para B, 2 para C, 3 para D)?', '0')
+
+        if (!q1 || !q2) return alert('Pelo menos duas opções são obrigatórias.')
+
+        const { error } = await supabase
+            .from('lms_questions')
+            .insert([{
+                quiz_id: selectedQuiz.id,
+                question_text: text,
+                options: [q1, q2, q3, q4].filter(q => q),
+                correct_option_index: parseInt(correct) || 0
+            }])
+        
+        if (error) alert('Erro ao salvar questão: ' + error.message)
+        else handleManageQuiz(selectedQuiz)
+    }
+
+    const handleDeleteQuestion = async (qId) => {
+        if (!window.confirm("Excluir esta questão?")) return
+        const { error } = await supabase.from('lms_questions').delete().eq('id', qId)
+        if (!error) handleManageQuiz(selectedQuiz)
+    }
+
     const handleTogglePublishCourse = async (courseId, currentStatus) => {
         const { error } = await supabase
             .from('lms_courses')
@@ -374,6 +453,34 @@ export default function LMSAdmin() {
                             >
                                 + Adicionar Aula neste Módulo
                             </button>
+                            
+                            {/* Seção de Quiz por Módulo */}
+                            <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                                {quizzes[mod.id] ? (
+                                    <div style={{ padding: '0.75rem', backgroundColor: '#F0F9FF', borderRadius: '6px', border: '1px solid #BAE6FD', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#0369A1' }}>
+                                            <CheckSquare size={16} />
+                                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{quizzes[mod.id].title}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', backgroundColor: '#fff' }} onClick={() => handleManageQuiz(quizzes[mod.id])}>Gerenciar Questões</button>
+                                            <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', color: 'var(--danger)' }} onClick={async () => {
+                                                if (window.confirm("Excluir esta prova?")) {
+                                                    await supabase.from('lms_quizzes').delete().eq('id', quizzes[mod.id].id)
+                                                    fetchCourseDetails(selectedCourse.id)
+                                                }
+                                            }}>Excluir</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => handleCreateQuiz(mod.id)}
+                                        style={{ width: '100%', padding: '0.75rem', border: '1px dashed #BAE6FD', borderRadius: '6px', color: '#0369A1', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                    >
+                                        <Plus size={16} /> Criar Prova/Exercício do Módulo
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -392,6 +499,46 @@ export default function LMSAdmin() {
             {view === 'list' && renderCourseList()}
             {view === 'add_course' && renderAddCourse()}
             {view === 'manage_course' && renderManageCourse()}
+
+            {/* MODAL DE GERENCIAMENTO DE PROVAS */}
+            {isEditingQuiz && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                    <div className="card animate-fade-in" style={{ width: '700px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <CheckSquare size={20} /> Questões: {selectedQuiz?.title}
+                                </h3>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Média para aprovação: {selectedQuiz?.passing_grade}%</p>
+                            </div>
+                            <button className="btn" onClick={() => setIsEditingQuiz(false)}>Fechar</button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {quizQuestions.map((q, idx) => (
+                                <div key={q.id} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                                        <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>{idx + 1}. {q.question_text}</p>
+                                        <Trash2 size={16} style={{ color: 'var(--danger)', cursor: 'pointer' }} onClick={() => handleDeleteQuestion(q.id)} />
+                                    </div>
+                                    <div style={{ marginTop: '0.75rem', paddingLeft: '1rem', borderLeft: '2px solid #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                        {q.options.map((opt, oidx) => (
+                                            <div key={oidx} style={{ fontSize: '0.8rem', color: oidx === q.correct_option_index ? '#059669' : 'inherit', fontWeight: oidx === q.correct_option_index ? 700 : 400 }}>
+                                                {String.fromCharCode(65 + oidx)}) {opt} {oidx === q.correct_option_index && '✓'}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {quizQuestions.length === 0 && <p className="text-center text-muted">Nenhuma questão cadastrada.</p>}
+                            
+                            <button className="btn btn-primary" style={{ marginTop: '1rem', justifyContent: 'center' }} onClick={handleAddQuestion}>
+                                + Adicionar Nova Questão
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
