@@ -533,18 +533,19 @@ export default function LMSAdmin() {
         
         let image_url = null
         if (window.confirm("Deseja anexar uma imagem à PERGUNTA?")) {
-            const input = document.createElement('input')
-            input.type = 'file'
-            input.accept = 'image/*'
-            input.onchange = async (e) => {
-                const file = e.target.files[0]
+            const file = await new Promise(resolve => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = 'image/*'
+                input.onchange = (e) => resolve(e.target.files[0])
+                input.click()
+            })
+            if (file) {
                 image_url = await handleQuizImageUpload(file, 'questions/')
-                continueWithQuestion(text, image_url)
             }
-            input.click()
-        } else {
-            continueWithQuestion(text, null)
         }
+        
+        continueWithQuestion(text, image_url)
     }
 
     const continueWithQuestion = async (text, qImage) => {
@@ -561,7 +562,6 @@ export default function LMSAdmin() {
             
             let optImage = null
             if (window.confirm(`Deseja anexar uma imagem à OPÇÃO ${letter}?`)) {
-                alert('Selecione o arquivo para esta opção na próxima janela.')
                 const file = await new Promise(resolve => {
                     const input = document.createElement('input')
                     input.type = 'file'
@@ -569,7 +569,9 @@ export default function LMSAdmin() {
                     input.onchange = (e) => resolve(e.target.files[0])
                     input.click()
                 })
-                optImage = await handleQuizImageUpload(file, 'options/')
+                if (file) {
+                    optImage = await handleQuizImageUpload(file, 'options/')
+                }
             }
             options.push({ text: optText, image_url: optImage })
         }
