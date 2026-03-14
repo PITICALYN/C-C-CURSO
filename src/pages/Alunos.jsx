@@ -61,7 +61,7 @@ export default function Alunos() {
 
             const { data: stdData, error } = await supabase
                 .from('students')
-                .select('*, classes(name, course_name), academic_records(*), student_evaluations(*)')
+                .select('*, classes(name, course_name), academic_records(*)')
                 .order('created_at', { ascending: false })
 
             if (error) throw error
