@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { BookOpen, Users, LogIn, LineChart, Calendar as CalendarIcon, Clock, X, Printer, FileText } from 'lucide-react'
+import { BookOpen, Users, LogIn, LineChart, Calendar as CalendarIcon, Clock, X, Printer, FileText, Edit, Trash2 } from 'lucide-react'
 import { generateDocument } from '../lib/pdfGenerator'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Turmas() {
     const [classes, setClasses] = useState([])
@@ -10,6 +11,10 @@ export default function Turmas() {
     const [selectedClassData, setSelectedClassData] = useState(null)
     const [classStudents, setClassStudents] = useState([])
     const [modalLoading, setModalLoading] = useState(false)
+    const [userProfile, setUserProfile] = useState(null)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingId, setEditingId] = useState(null)
+    const { session } = useAuth()
 
     const [formData, setFormData] = useState({
         name: '',
@@ -93,9 +98,23 @@ export default function Turmas() {
         }
     }
 
+    const fetchUserProfile = async () => {
+        if (!session?.user?.id) return
+        const { data, error } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .single()
+        
+        if (!error && data) {
+            setUserProfile(data)
+        }
+    }
+
     useEffect(() => {
         fetchClasses()
-    }, [])
+        fetchUserProfile()
+    }, [session])
 
     const handleFormChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -134,15 +153,59 @@ export default function Turmas() {
             duration: formData.duration
         }
 
-        const { error } = await supabase.from('classes').insert([newClass])
-        if (error) {
-            alert('Erro ao salvar no Supabase: ' + error.message)
+        if (isEditing && editingId) {
+            const { error } = await supabase.from('classes').update(newClass).eq('id', editingId)
+            if (error) {
+                alert('Erro ao atualizar no Supabase: ' + error.message)
+            } else {
+                alert('Turma atualizada com sucesso!')
+                finishEditing()
+                fetchClasses()
+            }
         } else {
-            alert('Turma criada com sucesso na Nuvem!')
-            setView('list')
-            setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '' })
+            const { error } = await supabase.from('classes').insert([newClass])
+            if (error) {
+                alert('Erro ao salvar no Supabase: ' + error.message)
+            } else {
+                alert('Turma criada com sucesso na Nuvem!')
+                setView('list')
+                setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '' })
+                fetchClasses()
+            }
+        }
+    }
+
+    const handleEditClass = (turma) => {
+        setFormData({
+            name: turma.name,
+            course_name: turma.course,
+            start_date: turma.startDate || '',
+            predicted_end_date: turma.predictedEndDate || '',
+            schedule: turma.schedule || '',
+            duration: turma.duration || ''
+        })
+        setIsEditing(true)
+        setEditingId(turma.id)
+        setView('add')
+    }
+
+    const handleDeleteClass = async (classId, className) => {
+        if (!window.confirm(`Tem certeza que deseja EXCLUIR permanentemente a turma ${className}?\n\nEsta ação não pode ser desfeita.`)) return
+
+        const { error } = await supabase.from('classes').delete().eq('id', classId)
+        if (error) {
+            alert('Erro ao excluir turma: ' + error.message)
+        } else {
+            alert('Turma excluída com sucesso!')
             fetchClasses()
         }
+    }
+
+    const finishEditing = () => {
+        setView('list')
+        setIsEditing(false)
+        setEditingId(null)
+        setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '' })
     }
 
     const handleStartClass = async (classId, className) => {
@@ -156,6 +219,19 @@ export default function Turmas() {
                 alert('Erro ao iniciar turma: ' + error.message)
             } else {
                 alert('Marcada como Em Andamento com sucesso!')
+                fetchClasses()
+            }
+        }
+    }
+
+    const handleDelayClass = async (classId, className) => {
+        const nextDate = window.prompt(`A Turma ${className} atrasou?\n\nInforme a NOVA DATA PREVISTA para início (YYYY-MM-DD):`, new Date().toISOString().split('T')[0])
+        if (nextDate) {
+            const { error } = await supabase.from('classes').update({ start_date: nextDate }).eq('id', classId)
+            if (error) {
+                alert('Erro ao atualizar previsão: ' + error.message)
+            } else {
+                alert('Previsão de início atualizada com sucesso!')
                 fetchClasses()
             }
         }
@@ -232,13 +308,25 @@ export default function Turmas() {
                                     <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{turma.name}</h3>
                                     <p className="text-secondary" style={{ fontSize: '0.875rem' }}>Curso: {turma.course}</p>
                                 </div>
-                                <span style={{
-                                    backgroundColor: '#DBEAFE', color: '#1E40AF', padding: '0.25rem 0.75rem',
-                                    borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600,
-                                    display: 'flex', alignItems: 'center', gap: '0.5rem'
-                                }}>
-                                    <Users size={14} /> {turma.studentsCount} Alunos
-                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                                    <span style={{
+                                        backgroundColor: '#DBEAFE', color: '#1E40AF', padding: '0.25rem 0.75rem',
+                                        borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600,
+                                        display: 'flex', alignItems: 'center', gap: '0.5rem'
+                                    }}>
+                                        <Users size={14} /> {turma.studentsCount} Alunos
+                                    </span>
+                                    {(userProfile?.role === 'admin' || userProfile?.role === 'coordenador') && (
+                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                            <button className="btn btn-secondary" style={{ padding: '0.25rem', height: 'auto' }} onClick={() => handleEditClass(turma)} title="Editar Turma">
+                                                <Edit size={14} />
+                                            </button>
+                                            <button className="btn btn-secondary" style={{ padding: '0.25rem', height: 'auto', color: 'var(--danger)' }} onClick={() => handleDeleteClass(turma.id, turma.name)} title="Excluir Turma">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
@@ -274,9 +362,16 @@ export default function Turmas() {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 {!turma.actualStartDate && (
-                                    <button className="btn" style={{ justifyContent: 'center', backgroundColor: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0' }} onClick={() => handleStartClass(turma.id, turma.name)}>
-                                        <CalendarIcon size={16} /> Marcar Início Oficial
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button className="btn" style={{ flex: 3, justifyContent: 'center', backgroundColor: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0' }} onClick={() => handleStartClass(turma.id, turma.name)}>
+                                            <CalendarIcon size={16} /> Marcar Início Oficial
+                                        </button>
+                                        {(turma.startDate && new Date(turma.startDate + 'T00:00:00') < new Date().setHours(0,0,0,0)) && (
+                                            <button className="btn" title="Adiar Início" style={{ flex: 1, justifyContent: 'center', backgroundColor: '#FEF3C7', color: '#92400E', borderColor: '#FDE68A' }} onClick={() => handleDelayClass(turma.id, turma.name)}>
+                                                <Clock size={16} /> Adiar
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                                 {(turma.actualStartDate && !turma.actualEndDate) && (
                                     <button className="btn" style={{ justifyContent: 'center', backgroundColor: '#FEF2F2', color: '#991B1B', borderColor: '#FECACA' }} onClick={() => handleEndClass(turma.id, turma.name)}>
@@ -363,10 +458,10 @@ export default function Turmas() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={() => setView('list')}>&larr; Voltar</button>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Nova Grade de Turma</h2>
+                    <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={finishEditing}>&larr; Voltar</button>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{isEditing ? `Editando Turma: ${editingId}` : 'Nova Grade de Turma'}</h2>
                 </div>
-                <button className="btn btn-primary" onClick={handleSubmit}>Salvar Turma (Nuvem)</button>
+                <button className="btn btn-primary" onClick={handleSubmit}>{isEditing ? 'Atualizar Alterações' : 'Salvar Turma (Nuvem)'}</button>
             </div>
 
             <div className="card">

@@ -10,6 +10,10 @@ import Professor from './pages/Professor'
 import Auditoria from './pages/Auditoria'
 import ConfigDocs from './pages/ConfigDocs'
 import Equipe from './pages/Equipe'
+import LMSAdmin from './pages/LMSAdmin'
+import AreaAluno from './pages/AreaAluno'
+import LessonPlayer from './pages/LessonPlayer'
+import ExamView from './pages/ExamView'
 
 const PrivateRoute = ({ children }) => {
   const { session } = useAuth()
@@ -35,6 +39,10 @@ function App() {
             <Route path="professor" element={<Professor />} />
             <Route path="auditoria" element={<Auditoria />} />
             <Route path="equipe" element={<Equipe />} />
+            <Route path="lms" element={<LMSAdmin />} />
+            <Route path="meus-cursos" element={<AreaAluno />} />
+            <Route path="curso/:courseId/aula/:lessonId" element={<LessonPlayer />} />
+            <Route path="exame/:quizId" element={<ExamView />} />
             <Route path="config" element={<ConfigDocs />} />
           </Route>
         </Routes>

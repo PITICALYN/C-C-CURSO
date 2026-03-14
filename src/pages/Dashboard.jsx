@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { AlertCircle, CheckCircle, Clock, Trophy, TrendingUp, Users } from 'lucide-react'
+import { AlertCircle, CheckCircle, Clock, Trophy, TrendingUp, Users as UsersIcon } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ChartTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 
 const COLORS = ['#0ea5e9', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e', '#f97316'];
 
 export default function Dashboard() {
+    const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [userRole, setUserRole] = useState(null)
     const [metrics, setMetrics] = useState({
@@ -38,7 +39,13 @@ export default function Dashboard() {
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
                 const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-                if (profile) setUserRole(profile.role)
+                if (profile) {
+                    setUserRole(profile.role)
+                    if (profile.role === 'aluno' || profile.role === 'student') {
+                        navigate('/meus-cursos')
+                        return
+                    }
+                }
             }
 
             // Fetch Payables
