@@ -179,7 +179,7 @@ export default function Sidebar() {
 
             <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', fontWeight: 500, letterSpacing: '0.05em' }}>
-                    Versão 1.14.0 (Super App)
+                    Versão 1.15.0 (EAD & Docs)
                 </div>
                 <button
                     onClick={handleLogout}
