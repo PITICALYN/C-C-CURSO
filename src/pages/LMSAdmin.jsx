@@ -325,12 +325,15 @@ export default function LMSAdmin() {
             video_url = window.prompt('URL do Vídeo (YouTube/Vimeo):')
             if (!video_url) return
         } else {
-            alert('Selecione o arquivo PDF na próxima janela.')
             const file = await new Promise(resolve => {
                 const input = document.createElement('input')
                 input.type = 'file'
                 input.accept = '.pdf'
-                input.onchange = (e) => resolve(e.target.files[0])
+                input.onchange = (e) => {
+                    const selected = e.target.files[0]
+                    resolve(selected)
+                }
+                // Garante que o clique ocorra imediatamente após o gesto do usuário (confirm)
                 input.click()
             })
             if (!file) return
@@ -392,7 +395,8 @@ export default function LMSAdmin() {
                 const file = await new Promise(resolve => {
                     const input = document.createElement('input')
                     input.type = 'file'; input.accept = '.pdf'
-                    input.onchange = (e) => resolve(e.target.files[0]); input.click()
+                    input.onchange = (e) => resolve(e.target.files[0]); 
+                    input.click()
                 })
                 if (file) {
                     const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${file.name.split('.').pop()}`
