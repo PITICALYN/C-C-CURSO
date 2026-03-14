@@ -9,6 +9,8 @@ export default function LMSAdmin() {
     const [selectedCourse, setSelectedCourse] = useState(null)
     const [modules, setModules] = useState([])
     const [lessons, setLessons] = useState({}) // { moduleId: [lessons] }
+    const [prices, setPrices] = useState([])
+    const [pricingView, setPricingView] = useState(false) // Toggle para aba de preços
 
     const [courseForm, setCourseForm] = useState({
         title: '',
@@ -52,8 +54,14 @@ export default function LMSAdmin() {
         }
     }
 
+    const fetchPrices = async () => {
+        const { data } = await supabase.from('course_prices').select('*').order('course_name')
+        if (data) setPrices(data)
+    }
+
     useEffect(() => {
         fetchCourses()
+        fetchPrices()
     }, [])
 
     const handleCreateCourse = async () => {
@@ -84,13 +92,58 @@ export default function LMSAdmin() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Cursos EAD</h2>
-                <button className="btn btn-primary" onClick={() => setView('add_course')}>
-                    <Plus size={16} /> Novo Curso
-                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button className="btn btn-secondary" onClick={() => setPricingView(!pricingView)}>
+                        {pricingView ? 'Ver Cursos' : 'Gerenciar Preços'}
+                    </button>
+                    <button className="btn btn-primary" onClick={() => setView('add_course')}>
+                        <Plus size={16} /> Novo Curso
+                    </button>
+                </div>
             </div>
 
             {loading ? (
-                <p>Carregando cursos...</p>
+                <p>Carregando dados...</p>
+            ) : pricingView ? (
+                <div className="card">
+                    <h3 style={{ marginBottom: '1.5rem' }}>Tabela de Preços Padrão</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+                                    <th style={{ padding: '0.75rem' }}>Nome do Curso</th>
+                                    <th style={{ padding: '0.75rem' }}>Preço Sugerido (R$)</th>
+                                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {prices.map(p => (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                        <td style={{ padding: '0.75rem' }}>{p.course_name}</td>
+                                        <td style={{ padding: '0.75rem' }}>R$ {p.default_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                                            <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={async () => {
+                                                const newVal = window.prompt(`Novo valor para ${p.course_name}:`, p.default_value)
+                                                if (newVal) {
+                                                    await supabase.from('course_prices').update({ default_value: parseFloat(newVal) }).eq('id', p.id)
+                                                    fetchPrices()
+                                                }
+                                            }}><Edit size={14} /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button className="btn btn-primary" style={{ marginTop: '1.5rem' }} onClick={async () => {
+                        const name = window.prompt('Nome do Curso para Preço:')
+                        const val = window.prompt('Valor Sugerido:')
+                        if (name && val) {
+                            await supabase.from('course_prices').insert([{ course_name: name, default_value: parseFloat(val) }])
+                            fetchPrices()
+                        }
+                    }}>+ Adicionar Novo Preço</button>
+                </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
                     {courses.map(course => (

@@ -20,7 +20,8 @@ export default function Turmas() {
         name: '',
         course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
         start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136',
-        lms_course_id: ''
+        lms_course_id: '',
+        course_value: ''
     })
     const [lmsCourses, setLmsCourses] = useState([])
 
@@ -49,16 +50,27 @@ export default function Turmas() {
 
     // Auto-preenchimento ao mudar o curso
     useEffect(() => {
+        const fetchDefaultPrice = async () => {
+            const { data } = await supabase
+                .from('course_prices')
+                .select('default_value')
+                .eq('course_name', formData.course_name)
+                .single()
+            
+            if (data) {
+                setFormData(prev => ({ ...prev, course_value: data.default_value }))
+            }
+        }
+
         const course = formData.course_name.toLowerCase()
         if (course.includes('treinamento')) {
-            // Treinamentos são livres
-            setFormData(prev => ({ ...prev, duration: '', schedule: '' }))
+            setFormData(prev => ({ ...prev, duration: '', schedule: '', course_value: '' }))
         } else if (course.includes('topografia') || course.includes('to')) {
-            // Curso Topografia Base 80h
             setFormData(prev => ({ ...prev, duration: '80', schedule: 'Seg a Sex 18h as 22h' }))
+            fetchDefaultPrice()
         } else {
-            // Cursos Mecânica/Caldeiraria Base 136h
             setFormData(prev => ({ ...prev, duration: '136', schedule: 'Seg a Sex 18h as 22h' }))
+            fetchDefaultPrice()
         }
     }, [formData.course_name])
 
@@ -161,7 +173,8 @@ export default function Turmas() {
             predicted_end_date: formData.predicted_end_date ? formData.predicted_end_date : null,
             schedule: formData.schedule,
             duration: formData.duration,
-            lms_course_id: formData.lms_course_id || null
+            lms_course_id: formData.lms_course_id || null,
+            course_value: formData.course_value ? parseFloat(formData.course_value) : 0
         }
 
         if (isEditing && editingId) {
@@ -194,7 +207,8 @@ export default function Turmas() {
             predicted_end_date: turma.predictedEndDate || '',
             schedule: turma.schedule || '',
             duration: turma.duration || '',
-            lms_course_id: turma.lms_course_id || ''
+            lms_course_id: turma.lms_course_id || '',
+            course_value: turma.course_value || ''
         })
         setIsEditing(true)
         setEditingId(turma.id)
@@ -217,7 +231,7 @@ export default function Turmas() {
         setView('list')
         setIsEditing(false)
         setEditingId(null)
-        setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '' })
+        setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '', course_value: '' })
     }
 
     const handleStartClass = async (classId, className) => {
@@ -586,6 +600,11 @@ export default function Turmas() {
                         )}
                     </div>
                     <div className="form-group"><label className="form-label">Carga Horária (Duração)</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleFormChange} placeholder="Ex: 80 horas" /></div>
+                    <div className="form-group">
+                        <label className="form-label">Valor do Curso (R$)</label>
+                        <input type="number" step="0.01" className="form-control" name="course_value" value={formData.course_value} onChange={handleFormChange} placeholder="Ex: 1500.00" />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Este valor será sugerido automaticamente na matrícula dos alunos.</span>
+                    </div>
                 </div>
             </div>
 

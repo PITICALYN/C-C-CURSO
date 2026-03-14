@@ -93,8 +93,16 @@ export default function Alunos() {
         s.cpf.includes(searchTerm)
     )
 
-    const handleFormChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value })
+    const handleFormChange = async (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+
+        if (name === 'turma_id' && value) {
+            const { data } = await supabase.from('classes').select('course_value').eq('id', value).single()
+            if (data && data.course_value) {
+                setFormData(prev => ({ ...prev, base_value: data.course_value }))
+            }
+        }
     }
 
     const handleSubmit = async () => {
