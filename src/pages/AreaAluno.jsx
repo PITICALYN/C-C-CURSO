@@ -9,6 +9,8 @@ export default function AreaAluno() {
     const navigate = useNavigate()
     const [myCourses, setMyCourses] = useState([])
     const [upcomingPractical, setUpcomingPractical] = useState([])
+    const [quizResults, setQuizResults] = useState([])
+    const [technicalEvals, setTechnicalEvals] = useState([])
     const [loading, setLoading] = useState(true)
     const { session } = useAuth()
 
@@ -75,7 +77,27 @@ export default function AreaAluno() {
         if (practicalStudents) {
             const dates = practicalStudents.map(s => s.classes).filter(Boolean)
             setUpcomingPractical(dates)
+
+            // 5. Buscar notas das avaliações técnicas (presenciais)
+            const studentIds = practicalStudents.map(s => s.id)
+            if (studentIds.length > 0) {
+                const { data: evals } = await supabase
+                    .from('student_evaluations')
+                    .select('*, classes(name, course_name)')
+                    .in('student_id', studentIds)
+                    .order('date', { ascending: false })
+                if (evals) setTechnicalEvals(evals)
+            }
         }
+
+        // 6. Buscar notas dos quizzes EAD realizados
+        const { data: qResults } = await supabase
+            .from('lms_quiz_results')
+            .select('*, lms_quizzes(title, quiz_type)')
+            .eq('student_id', session.user.id)
+            .order('updated_at', { ascending: false })
+        
+        if (qResults) setQuizResults(qResults)
 
         setLoading(false)
     }
@@ -148,6 +170,81 @@ export default function AreaAluno() {
                                 <p style={{ fontSize: '0.875rem', color: '#B45309', textAlign: 'center' }}>Sem datas previstas no momento.</p>
                             )}
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* HISTÓRICO DE NOTAS E DESEMPENHO */}
+            <div style={{ marginTop: '3rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <CheckCircle size={20} className="text-success" /> Meu Desempenho e Notas
+                </h3>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    {/* NOTAS EAD */}
+                    <div className="card">
+                        <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Provas Online (EAD)</h4>
+                        {quizResults.length === 0 ? (
+                            <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Nenhum teste concluído ainda.</p>
+                        ) : (
+                            <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
+                                        <th style={{ padding: '0.5rem 0' }}>Teste/Módulo</th>
+                                        <th style={{ padding: '0.5rem 0' }}>Tentativas</th>
+                                        <th style={{ padding: '0.5rem 0', textAlign: 'right' }}>Maior Nota</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {quizResults.map(r => (
+                                        <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '0.75rem 0' }}>
+                                                <div style={{ fontWeight: 600 }}>{r.lms_quizzes?.title}</div>
+                                                <div style={{ fontSize: '0.7rem', color: r.lms_quizzes?.quiz_type === 'final_exam' ? '#7c3aed' : '#059669' }}>
+                                                    {r.lms_quizzes?.quiz_type === 'final_exam' ? '🏆 PROVA FINAL' : '📝 EXERCÍCIO'}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 0' }}>{r.attempts_count} / 3</td>
+                                            <td style={{ padding: '0.75rem 0', textAlign: 'right', fontWeight: 700, color: r.score >= 70 ? '#10b981' : '#ef4444' }}>
+                                                {r.score}%
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+
+                    {/* NOTAS PRESENCIAIS */}
+                    <div className="card">
+                        <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avaliações Presenciais</h4>
+                        {technicalEvals.length === 0 ? (
+                            <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Nenhuma nota presencial lançada pelo instrutor.</p>
+                        ) : (
+                            <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
+                                        <th style={{ padding: '0.5rem 0' }}>Data</th>
+                                        <th style={{ padding: '0.5rem 0' }}>Tipo</th>
+                                        <th style={{ padding: '0.5rem 0', textAlign: 'right' }}>Nota</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {technicalEvals.map(e => (
+                                        <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '0.75rem 0' }}>{new Date(e.date).toLocaleDateString()}</td>
+                                            <td style={{ padding: '0.75rem 0' }}>
+                                                <div style={{ fontWeight: 600 }}>{e.exam_type}</div>
+                                                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{e.classes?.name}</div>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 0', textAlign: 'right', fontWeight: 700, color: e.grade >= 7 ? '#10b981' : '#ef4444' }}>
+                                                {e.grade}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             </div>
