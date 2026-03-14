@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight } from 'lucide-react'
+import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight, FileText } from 'lucide-react'
 
 export default function LessonPlayer() {
     const { courseId, lessonId } = useParams()
@@ -15,6 +15,8 @@ export default function LessonPlayer() {
     const [secondsWatched, setSecondsWatched] = useState(0)
     const [isCompleted, setIsCompleted] = useState(false)
     const [lessonStatus, setLessonStatus] = useState({}) // { lessonId: { is_completed, watched_seconds } }
+    const [quizStatus, setQuizStatus] = useState({}) // { quizId: { is_approved, score } }
+    const [courseQuizzes, setCourseQuizzes] = useState([])
     
     const timerRef = useRef(null)
 
@@ -55,6 +57,23 @@ export default function LessonPlayer() {
                 .order('order_index', { ascending: true })
             
             setAllLessons(lessons || [])
+
+            // Buscar todos os quizzes do curso
+            const { data: qzs } = await supabase
+                .from('lms_quizzes')
+                .select('*')
+                .eq('course_id', lessonData.lms_modules.course_id)
+            setCourseQuizzes(qzs || [])
+
+            // Buscar resultados dos quizzes do aluno
+            const { data: qres } = await supabase
+                .from('lms_quiz_results')
+                .select('*')
+                .eq('student_id', session.user.id)
+            
+            const qMap = {}
+            qres?.forEach(r => qMap[r.quiz_id] = { is_approved: r.is_approved, score: r.score })
+            setQuizStatus(qMap)
 
             // Buscar progresso do aluno para todas as aulas do curso
             const { data: progress } = await supabase
@@ -245,28 +264,72 @@ export default function LessonPlayer() {
                     {allLessons.map((l, idx) => {
                         const isCurrent = l.id === lessonId
                         const isDone = lessonStatus[l.id]?.is_completed
-                        const isLocked = idx > 0 && !lessonStatus[allLessons[idx-1].id]?.is_completed && !isDone
                         
+                        // Lógica de Bloqueio de Módulo por Prova
+                        const lessonModule = l.module_id
+                        const previousModules = [...new Set(allLessons.slice(0, idx).map(al => al.module_id))]
+                            .filter(m => m !== lessonModule)
+                        
+                        let isBlockedByQuiz = false
+                        for (const modId of previousModules) {
+                            const modQuiz = courseQuizzes.find(q => q.module_id === modId)
+                            if (modQuiz && !quizStatus[modQuiz.id]?.is_approved) {
+                                isBlockedByQuiz = true
+                                break
+                            }
+                        }
+
+                        const isLocked = (idx > 0 && !lessonStatus[allLessons[idx-1].id]?.is_completed && !isDone) || isBlockedByQuiz
+                        
+                        // Verificar se existe quiz para este módulo logo após esta aula (se for a última do módulo)
+                        const isLastInModule = idx === allLessons.length - 1 || allLessons[idx+1].module_id !== lessonModule
+                        const moduleQuiz = courseQuizzes.find(q => q.module_id === lessonModule)
+
                         return (
-                            <div 
-                                key={l.id} 
-                                onClick={() => !isLocked && navigate(`/curso/${courseId}/aula/${l.id}`)}
-                                style={{ 
-                                    padding: '1rem 1.5rem', 
-                                    borderBottom: '1px solid #334155', 
-                                    cursor: isLocked ? 'not-allowed' : 'pointer',
-                                    backgroundColor: isCurrent ? '#0f172a' : 'transparent',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    opacity: isLocked ? 0.5 : 1
-                                }}
-                            >
-                                <span style={{ fontSize: '0.75rem', color: isDone ? '#10b981' : '#64748b' }}>
-                                    {isDone ? <CheckCircle size={14} /> : `${idx + 1}.`}
-                                </span>
-                                <span style={{ fontSize: '0.875rem', color: isCurrent ? 'white' : '#94a3b8', flex: 1 }}>{l.title}</span>
-                                {isLocked && <Lock size={14} style={{ color: '#64748b' }} />}
+                            <div key={l.id}>
+                                <div 
+                                    onClick={() => !isLocked && navigate(`/curso/${courseId}/aula/${l.id}`)}
+                                    style={{ 
+                                        padding: '1rem 1.5rem', 
+                                        borderBottom: '1px solid #334155', 
+                                        cursor: isLocked ? 'not-allowed' : 'pointer',
+                                        backgroundColor: isCurrent ? '#0f172a' : 'transparent',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.75rem',
+                                        opacity: isLocked ? 0.5 : 1
+                                    }}
+                                >
+                                    <span style={{ fontSize: '0.75rem', color: isDone ? '#10b981' : '#64748b' }}>
+                                        {isDone ? <CheckCircle size={14} /> : `${idx + 1}.`}
+                                    </span>
+                                    <span style={{ fontSize: '0.875rem', color: isCurrent ? 'white' : '#94a3b8', flex: 1 }}>{l.title}</span>
+                                    {isLocked && <Lock size={14} style={{ color: '#64748b' }} />}
+                                </div>
+                                
+                                {isLastInModule && moduleQuiz && (
+                                    <div 
+                                        onClick={() => navigate(`/prova/${moduleQuiz.id}`)}
+                                        style={{ 
+                                            padding: '0.75rem 1.5rem', 
+                                            backgroundColor: quizStatus[moduleQuiz.id]?.is_approved ? '#064e3b' : '#1e293b',
+                                            borderBottom: '1px solid #334155',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            color: quizStatus[moduleQuiz.id]?.is_approved ? '#10b981' : '#fbbf24'
+                                        }}
+                                    >
+                                        <FileText size={14} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{moduleQuiz.title}</span>
+                                        {quizStatus[moduleQuiz.id]?.is_approved ? (
+                                            <CheckCircle size={14} style={{ marginLeft: 'auto' }} />
+                                        ) : (
+                                            <Lock size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )
                     })}
