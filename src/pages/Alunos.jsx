@@ -61,7 +61,7 @@ export default function Alunos() {
 
             const { data: stdData, error } = await supabase
                 .from('students')
-                .select('*, classes(name, course_name), academic_records(*)')
+                .select('*, classes(name, course_name)')
                 .order('created_at', { ascending: false })
 
             if (error) throw error
@@ -265,6 +265,61 @@ export default function Alunos() {
         }
     }
 
+    const handleDownloadCertificate = async (student) => {
+        setLoading(true)
+        try {
+            const { data: qzResults } = await supabase
+                .from('lms_quiz_results')
+                .select('*')
+                .eq('student_id', student.id)
+            
+            const eadAvg = qzResults?.length > 0 
+                ? qzResults.reduce((acc, curr) => acc + curr.score, 0) / qzResults.length 
+                : 0
+
+            const { data: evals } = await supabase
+                .from('student_evaluations')
+                .select('*')
+                .eq('student_id', student.id)
+            
+            const teorica = evals?.find(e => e.exam_type === 'TEORICA')?.grade || 0
+            const pratica = evals?.find(e => e.exam_type === 'PRATICA')?.grade || 0
+
+            const isApproved = eadAvg >= 70 && teorica >= 70 && pratica >= 70
+            const type = isApproved ? 'conclusao' : 'participacao'
+
+            const { data: config } = await supabase
+                .from('lms_certificate_configs')
+                .select('*')
+                .eq('type', type)
+                .single()
+
+            if (!config) {
+                alert(`Modelo de certificado de ${type} não configurado no sistema. (Vá em Configurações > Modelos Oficiais)`)
+                return
+            }
+
+            let text = config.template_text
+                .replace('{{nome}}', student.name)
+                .replace('{{cpf}}', student.cpf)
+                .replace('{{curso}}', student.class)
+                .replace('{{nota}}', isApproved ? ((eadAvg + teorica + pratica) / 3).toFixed(1) : '')
+            
+            generateDocument({
+                title: isApproved ? 'Certificado de Conclusão' : 'Certificado de Participação',
+                content: text,
+                studentName: student.name
+            })
+
+            alert(`Certificado de ${isApproved ? 'Conclusão' : 'Participação'} gerado com sucesso!`)
+        } catch (error) {
+            console.error('Erro ao gerar certificado:', error)
+            alert('Falha ao gerar certificado.')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const renderList = () => (
         <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -326,10 +381,11 @@ export default function Alunos() {
                                             {s.status}
                                         </span>
                                     </td>
-                                    <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                        <button className="btn btn-secondary" style={{ padding: '0.5rem' }} title="Editar Dados" onClick={() => handleEdit(s)}><FileText size={16} /></button>
-                                        <button className="btn btn-secondary" style={{ padding: '0.5rem' }} title="Visualizar Perfil" onClick={() => setView(s)}><Eye size={16} /></button>
-                                        <button className="btn btn-secondary" style={{ padding: '0.5rem' }} title="Impressão Rápida" onClick={() => setView(s)}><Printer size={16} /></button>
+                                    <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Certificado" onClick={() => handleDownloadCertificate(s)}><Award size={16} color="#eab308" /></button>
+                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Editar Dados" onClick={() => handleEdit(s)}><FileText size={16} /></button>
+                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Visualizar Perfil" onClick={() => setView(s)}><Eye size={16} /></button>
+                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Impressão Rápida" onClick={() => setView(s)}><Printer size={16} /></button>
                                     </td>
                                 </tr>
                             ))}

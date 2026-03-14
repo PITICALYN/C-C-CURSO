@@ -20,6 +20,7 @@ export default function LMSAdmin() {
     const [eadDoubts, setEadDoubts] = useState([])
     const [answeringDoubtId, setAnsweringDoubtId] = useState(null)
     const [doubtAnswerText, setDoubtAnswerText] = useState('')
+    const [certConfigs, setCertConfigs] = useState([])
 
     const [courseForm, setCourseForm] = useState({
         title: '',
@@ -114,9 +115,15 @@ export default function LMSAdmin() {
         }
     }
 
+    const fetchCertConfigs = async () => {
+        const { data } = await supabase.from('lms_certificate_configs').select('*')
+        if (data) setCertConfigs(data)
+    }
+
     useEffect(() => {
         fetchCourses()
         fetchPrices()
+        fetchCertConfigs()
     }, [])
 
     const handleSaveCourse = async () => {
@@ -154,6 +161,16 @@ export default function LMSAdmin() {
         }
     }
 
+    const handleSaveCertConfig = async (id, text) => {
+        const { error } = await supabase
+            .from('lms_certificate_configs')
+            .update({ template_text: text, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        
+        if (error) alert('Erro ao salvar modelo: ' + error.message)
+        else alert('Modelo atualizado com sucesso!')
+    }
+
     const handleSelectCourse = async (course) => {
         setSelectedCourse(course)
         await fetchCourseDetails(course.id)
@@ -164,10 +181,9 @@ export default function LMSAdmin() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Cursos EAD</h2>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button className="btn btn-secondary" onClick={() => setView('doubts')}>
-                        Central de Dúvidas
-                    </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button className="btn btn-secondary" onClick={() => { setView('doubts'); fetchAllDoubts(); }}>Central de Dúvidas</button>
+                    <button className="btn btn-secondary" onClick={() => { setView('certificate_models'); fetchCertConfigs(); }}>Modelos de Certificado</button>
                     <button className="btn btn-secondary" onClick={() => setPricingView(!pricingView)}>
                         {pricingView ? 'Ver Cursos' : 'Gerenciar Preços'}
                     </button>
@@ -366,20 +382,32 @@ export default function LMSAdmin() {
             video_url = window.prompt('URL do Vídeo (YouTube/Vimeo):')
             if (!video_url) return
         } else if (choice === '2') {
+            // Criar input e disparar IMEDIATAMENTE para evitar bloqueio de popup/evento
             const file = await new Promise(resolve => {
                 const input = document.createElement('input')
                 input.type = 'file'
                 input.accept = '.pdf'
                 input.style.display = 'none'
                 document.body.appendChild(input)
+                
                 input.onchange = (e) => {
                     const selected = e.target.files[0]
                     document.body.removeChild(input)
                     resolve(selected)
                 }
+                
+                // Dispara o clique
                 input.click()
-                // Limpeza de segurança caso o usuário cancele (alguns navegadores não disparam onchange)
-                setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
+                
+                // Cleanup se não escolher nada
+                window.addEventListener('focus', () => {
+                    setTimeout(() => {
+                        if (document.body.contains(input)) {
+                            document.body.removeChild(input)
+                            resolve(null)
+                        }
+                    }, 1000)
+                }, { once: true })
             })
             if (!file) return
 
@@ -445,7 +473,10 @@ export default function LMSAdmin() {
                         const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
                     }; 
                     input.click()
-                    setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
+                    // Cleanup
+                    window.addEventListener('focus', () => {
+                        setTimeout(() => { if (document.body.contains(input)) { document.body.removeChild(input); resolve(null); } }, 1000)
+                    }, { once: true })
                 })
                 if (file) {
                     const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${file.name.split('.').pop()}`
@@ -488,8 +519,15 @@ export default function LMSAdmin() {
         else fetchCourseDetails(selectedCourse.id)
     }
 
-    const handleCreateQuiz = async (moduleId) => {
-        const title = window.prompt('Título da Prova/Exercício:', 'Avaliação de Conhecimento')
+    const handleCreateQuiz = async (moduleId, forcedType = null) => {
+        let quiz_type = forcedType
+        if (!quiz_type) {
+            const typeChoice = window.prompt('O que deseja adicionar?\n1 - Exercício de Módulo (Fixação)\n2 - Prova Final do Curso (Avaliação)', '1')
+            if (!typeChoice) return
+            quiz_type = typeChoice === '2' ? 'final_exam' : 'exercise'
+        }
+
+        const title = window.prompt('Título da Avaliação:', quiz_type === 'exercise' ? 'Exercício de Fixação' : 'Prova Final')
         if (!title) return
 
         const minutes = window.prompt('Tempo Limite (em minutos). Digite 0 para sem limite:', '60')
@@ -500,7 +538,7 @@ export default function LMSAdmin() {
                 course_id: selectedCourse.id, 
                 module_id: moduleId, 
                 title,
-                quiz_type: window.confirm('Este teste é a PROVA FINAL do curso? (Clique em Cancelar para Exercício de Módulo)') ? 'final_exam' : 'exercise',
+                quiz_type: quiz_type,
                 passing_grade: 70,
                 max_attempts: 3,
                 time_limit_minutes: parseInt(minutes) || 0
@@ -508,7 +546,7 @@ export default function LMSAdmin() {
             .select()
             .single()
         
-        if (error) alert('Erro ao criar quiz: ' + error.message)
+        if (error) alert('Erro ao criar: ' + error.message)
         else fetchCourseDetails(selectedCourse.id)
     }
 
@@ -832,12 +870,20 @@ export default function LMSAdmin() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <button 
-                                        onClick={() => handleCreateQuiz(mod.id)}
-                                        style={{ width: '100%', padding: '0.75rem', border: '1px dashed #BAE6FD', borderRadius: '6px', color: '#0369A1', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                    >
-                                        <Plus size={16} /> Criar Prova/Exercício do Módulo
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button 
+                                            onClick={() => handleCreateQuiz(mod.id, 'exercise')}
+                                            style={{ flex: 1, padding: '0.75rem', border: '1px dashed #BAE6FD', borderRadius: '6px', color: '#0369A1', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                        >
+                                            <Plus size={16} /> Adicionar Exercício
+                                        </button>
+                                        <button 
+                                            onClick={() => handleCreateQuiz(mod.id, 'final_exam')}
+                                            style={{ flex: 1, padding: '0.75rem', border: '1px dashed #9333ea', borderRadius: '6px', color: '#9333ea', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                        >
+                                            <Trophy size={16} /> Adicionar Prova Final
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -977,6 +1023,36 @@ export default function LMSAdmin() {
             {view === 'add_course' && renderAddCourse()}
             {view === 'manage_course' && renderManageCourse()}
             {view === 'doubts' && renderDoubts()}
+            {view === 'certificate_models' && (
+                <div className="animate-fade-in">
+                    <button className="btn btn-secondary" style={{ marginBottom: '1.5rem' }} onClick={() => setView('list')}>&larr; Voltar</button>
+                    <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Modelos de Certificado Oficiais</h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                        {certConfigs.map(config => (
+                            <div key={config.id} className="card">
+                                <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', textTransform: 'capitalize' }}>
+                                    {config.type === 'conclusao' ? '🎓 Certificado de Conclusão' : '📜 Certificado de Participação'}
+                                </h4>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                                    Use variáveis como: <strong>{"{{nome}}"}</strong>, <strong>{"{{cpf}}"}</strong>, <strong>{"{{curso}}"}</strong>, <strong>{"{{nota}}"}</strong>, <strong>{"{{horas}}"}</strong>.
+                                </p>
+                                <textarea 
+                                    className="form-control" 
+                                    rows="10" 
+                                    defaultValue={config.template_text}
+                                    onBlur={(e) => handleSaveCertConfig(config.id, e.target.value)}
+                                    placeholder="Escreva o texto do certificado aqui..."
+                                    style={{ fontFamily: 'serif', padding: '1.5rem' }}
+                                ></textarea>
+                                <p style={{ fontSize: '0.7rem', marginTop: '1rem', textAlign: 'right', color: 'var(--text-muted)' }}>
+                                    Salva automaticamente ao sair do campo.
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
