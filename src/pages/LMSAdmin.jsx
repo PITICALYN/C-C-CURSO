@@ -333,12 +333,16 @@ export default function LMSAdmin() {
                 const input = document.createElement('input')
                 input.type = 'file'
                 input.accept = '.pdf'
+                input.style.display = 'none'
+                document.body.appendChild(input)
                 input.onchange = (e) => {
                     const selected = e.target.files[0]
+                    document.body.removeChild(input)
                     resolve(selected)
                 }
-                // Garante que o clique ocorra imediatamente após o gesto do usuário (confirm)
                 input.click()
+                // Limpeza de segurança caso o usuário cancele (alguns navegadores não disparam onchange)
+                setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
             })
             if (!file) return
 
@@ -399,8 +403,12 @@ export default function LMSAdmin() {
                 const file = await new Promise(resolve => {
                     const input = document.createElement('input')
                     input.type = 'file'; input.accept = '.pdf'
-                    input.onchange = (e) => resolve(e.target.files[0]); 
+                    input.style.display = 'none'; document.body.appendChild(input)
+                    input.onchange = (e) => {
+                        const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
+                    }; 
                     input.click()
+                    setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
                 })
                 if (file) {
                     const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${file.name.split('.').pop()}`
@@ -541,8 +549,12 @@ export default function LMSAdmin() {
                 const input = document.createElement('input')
                 input.type = 'file'
                 input.accept = 'image/*'
-                input.onchange = (e) => resolve(e.target.files[0])
+                input.style.display = 'none'; document.body.appendChild(input)
+                input.onchange = (e) => {
+                    const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
+                }
                 input.click()
+                setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
             })
             if (file) {
                 image_url = await handleQuizImageUpload(file, 'questions/')
@@ -563,7 +575,12 @@ export default function LMSAdmin() {
                 const file = await new Promise(resolve => {
                     const input = document.createElement('input')
                     input.type = 'file'; input.accept = 'image/*'
-                    input.onchange = (e) => resolve(e.target.files[0]); input.click()
+                    input.style.display = 'none'; document.body.appendChild(input)
+                    input.onchange = (e) => {
+                        const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
+                    }
+                    input.click()
+                    setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
                 })
                 if (file) {
                     optImage = await handleQuizImageUpload(file, 'options/')
