@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { AlertCircle, CheckCircle, Clock, Trophy, TrendingUp, Users as UsersIcon } from 'lucide-react'

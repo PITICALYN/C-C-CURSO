@@ -48,7 +48,7 @@ export default function Sidebar() {
                     })}
                 >
                     <LayoutDashboard size={20} />
-                    Dashboard
+                    Painel Geral
                 </NavLink>
 
                 <NavLink
@@ -64,62 +64,77 @@ export default function Sidebar() {
                     Meus Cursos
                 </NavLink>
 
-                {userRole !== 'aluno' && userRole !== 'student' && (
+                <>
+                    <NavLink
+                        to="/alunos"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <UsersIcon size={20} />
+                        Listagem de Alunos
+                    </NavLink>
+
+                    <NavLink
+                        to="/turmas"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <GraduationCap size={20} />
+                        Turmas
+                    </NavLink>
+
+                    <NavLink
+                        to="/financeiro"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <DollarSign size={20} />
+                        Financeiro
+                    </NavLink>
+
+                    <NavLink
+                        to="/professor"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <BookOpen size={20} />
+                        Portal do Instrutor
+                    </NavLink>
+
+                    <NavLink
+                        to="/auditoria"
+                        style={({ isActive }) => ({
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                            borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                            backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isActive ? '600' : '500'
+                        })}
+                    >
+                        <ShieldCheck size={20} />
+                        Auditoria (Logs)
+                    </NavLink>
+                </>
+
+                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                     <>
                         <NavLink
-                            to="/alunos"
-                            style={({ isActive }) => ({
-                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                fontWeight: isActive ? '600' : '500'
-                            })}
-                        >
-                            <UsersIcon size={20} />
-                            Listagem de Alunos
-                        </NavLink>
-
-                        <NavLink
-                            to="/turmas"
-                            style={({ isActive }) => ({
-                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                fontWeight: isActive ? '600' : '500'
-                            })}
-                        >
-                            <GraduationCap size={20} />
-                            Turmas
-                        </NavLink>
-
-                        <NavLink
-                            to="/financeiro"
-                            style={({ isActive }) => ({
-                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                fontWeight: isActive ? '600' : '500'
-                            })}
-                        >
-                            <DollarSign size={20} />
-                            Financeiro
-                        </NavLink>
-
-                        <NavLink
-                            to="/professor"
-                            style={({ isActive }) => ({
-                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                fontWeight: isActive ? '600' : '500'
-                            })}
-                        >
-                            <BookOpen size={20} />
-                            Portal do Instrutor
-                        </NavLink>
-
-                        <NavLink
-                            to="/auditoria"
+                            to="/equipe"
                             style={({ isActive }) => ({
                                 display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
                                 borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
@@ -128,56 +143,37 @@ export default function Sidebar() {
                             })}
                         >
                             <ShieldCheck size={20} />
-                            Auditoria (Logs)
+                            Equipe (Auth)
+                        </NavLink>
+
+                        <NavLink
+                            to="/lms"
+                            style={({ isActive }) => ({
+                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                                borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                                backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                                fontWeight: isActive ? '600' : '500',
+                                marginTop: '0.5rem'
+                            })}
+                        >
+                            <Video size={20} />
+                            Plataforma EAD (LMS)
+                        </NavLink>
+
+                        <NavLink
+                            to="/config"
+                            style={({ isActive }) => ({
+                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+                                borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                                backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
+                                fontWeight: isActive ? '600' : '500',
+                                marginTop: '0.5rem'
+                            })}
+                        >
+                            <Settings size={20} />
+                            Modelos de Texto
                         </NavLink>
                     </>
-                )}
-
-                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                    {userRole !== 'aluno' && userRole !== 'student' && (
-                        <>
-                            <NavLink
-                                to="/equipe"
-                                style={({ isActive }) => ({
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                    borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                    backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                    fontWeight: isActive ? '600' : '500'
-                                })}
-                            >
-                                <ShieldCheck size={20} />
-                                Equipe (Auth)
-                            </NavLink>
-
-                            <NavLink
-                                to="/lms"
-                                style={({ isActive }) => ({
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                    borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                    backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                    fontWeight: isActive ? '600' : '500',
-                                    marginTop: '0.5rem'
-                                })}
-                            >
-                                <Video size={20} />
-                                Plataforma EAD (LMS)
-                            </NavLink>
-
-                            <NavLink
-                                to="/config"
-                                style={({ isActive }) => ({
-                                    display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                                    borderRadius: 'var(--radius-md)', color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                                    backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                                    fontWeight: isActive ? '600' : '500',
-                                    marginTop: '0.5rem'
-                                })}
-                            >
-                                <Settings size={20} />
-                                Modelos de Texto
-                            </NavLink>
-                        </>
-                    )}
                 </div>
             </nav>
 
