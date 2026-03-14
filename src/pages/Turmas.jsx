@@ -76,7 +76,7 @@ export default function Turmas() {
                 .from('classes')
                 .select(`
                     id, name, course_name, start_date, actual_start_date, predicted_end_date, actual_end_date, schedule, duration,
-                    lms_course_id,
+                    lms_course_id, evaluation_pdf_url,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -93,7 +93,8 @@ export default function Turmas() {
                 actualEndDate: c.actual_end_date,
                 schedule: c.schedule,
                 duration: c.duration,
-                studentsCount: c.students[0]?.count || 0
+                studentsCount: c.students[0]?.count || 0,
+                evaluationUrl: c.evaluation_pdf_url
             }))
 
             // Reorganizando e Forçando state default p/ Form
@@ -276,6 +277,37 @@ export default function Turmas() {
         }
     }
 
+    const handleEvalUpload = async (classId, file) => {
+        if (!file) return
+        const fileName = `eval_${classId}_${Math.random().toString(36).substring(7)}.pdf`
+        const filePath = `evaluations/${fileName}`
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('class-evaluations')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('class-evaluations')
+                .getPublicUrl(filePath)
+
+            const { error: updateError } = await supabase
+                .from('classes')
+                .update({ evaluation_pdf_url: publicUrl })
+                .eq('id', classId)
+
+            if (updateError) throw updateError
+
+            alert('Avaliação da turma enviada com sucesso!')
+            fetchClasses()
+        } catch (error) {
+            console.error('Erro no upload da avaliação:', error)
+            alert('Falha ao enviar avaliação: ' + error.message)
+        }
+    }
+
     const handleOpenClassStudents = async (turma) => {
         setSelectedClassData(turma)
         setModalLoading(true)
@@ -396,10 +428,24 @@ export default function Turmas() {
                                         )}
                                     </div>
                                 )}
-                                {(turma.actualStartDate && !turma.actualEndDate) && (
+                                 {(turma.actualStartDate && !turma.actualEndDate) && (
                                     <button className="btn" style={{ justifyContent: 'center', backgroundColor: '#FEF2F2', color: '#991B1B', borderColor: '#FECACA' }} onClick={() => handleEndClass(turma.id, turma.name)}>
                                         <Clock size={16} /> Encerrar e Fechar Turma
                                     </button>
+                                )}
+                                {turma.actualEndDate && (
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        {turma.evaluationUrl ? (
+                                            <a href={turma.evaluationUrl} target="_blank" rel="noreferrer" className="btn" style={{ flex: 1, justifyContent: 'center', backgroundColor: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0', textDecoration: 'none', fontSize: '0.85rem' }}>
+                                                <FileText size={16} /> Ver Avaliação
+                                            </a>
+                                        ) : (
+                                            <label className="btn" style={{ flex: 1, justifyContent: 'center', backgroundColor: '#F8FAFC', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                                <UploadCloud size={16} /> Anexar Avaliação (PDF)
+                                                <input type="file" hidden accept=".pdf" onChange={(e) => handleEvalUpload(turma.id, e.target.files[0])} />
+                                            </label>
+                                        )}
+                                    </div>
                                 )}
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => handleOpenClassStudents(turma)}>

@@ -210,6 +210,52 @@ export default function Alunos() {
         }
     }
 
+    const handleFileUpload = async (studentId, file, type) => {
+        if (!file) return
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${studentId}_${type}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `${studentId}/${fileName}`
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('student-docs')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('student-docs')
+                .getPublicUrl(filePath)
+
+            // Atualizar o banco de dados
+            let updatePayload = {}
+            if (type === 'provas') {
+                const currentExams = view.originalData?.doc_exams_url || []
+                updatePayload = { doc_exams_url: [...currentExams, { name: file.name, url: publicUrl, date: new Date().toISOString() }] }
+            } else {
+                updatePayload = { [`doc_${type}_url`]: publicUrl }
+            }
+
+            const { error: updateError } = await supabase
+                .from('students')
+                .update(updatePayload)
+                .eq('id', studentId)
+
+            if (updateError) throw updateError
+
+            alert('Documento enviado com sucesso!')
+            fetchStudents()
+            // Atualizar view local se estiver em detalhes
+            if (typeof view === 'object' && view.id === studentId) {
+                const updatedData = { ...view.originalData, ...updatePayload }
+                setView({ ...view, originalData: updatedData })
+            }
+        } catch (error) {
+            console.error('Erro no upload:', error)
+            alert('Falha ao enviar arquivo: ' + error.message)
+        }
+    }
+
     const renderList = () => (
         <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -416,26 +462,67 @@ export default function Alunos() {
                         <div style={{ padding: '0.5rem 1rem', borderRadius: '999px', fontWeight: 600, backgroundColor: statusBadge.bg, color: statusBadge.color }}>{statusBadge.label}</div>
                     </div>
 
-                    <div style={{ padding: '1.5rem', backgroundColor: '#F8FAFC', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', marginBottom: '2rem' }}>
-                        <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', color: 'var(--primary)' }}>Central de Emissão de Documentos e PDFs</h3>
-                        {!student.originalData.manual_signed && (
-                            <div style={{ backgroundColor: '#FEF3C7', color: '#92400E', padding: '0.75rem', borderRadius: '4px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span>⚠️ O Certificado RT está bloqueado: Aluno não assinou/entregou o Manual.</span>
-                                <button className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }} onClick={() => handleSignManual(student.id)}>Registrar Entrega do Manual</button>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+                        {/* Central de Emissão de Documentos e PDFs */}
+                        <div style={{ padding: '1.5rem', backgroundColor: '#F8FAFC', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+                            <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', color: 'var(--primary)' }}>Emissão de Documentos</h3>
+                            {!student.originalData.manual_signed && (
+                                <div style={{ backgroundColor: '#FEF3C7', color: '#92400E', padding: '0.75rem', borderRadius: '4px', marginBottom: '1.5rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>⚠️ Manual Pendente</span>
+                                    <button className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }} onClick={() => handleSignManual(student.id)}>Assinar</button>
+                                </div>
+                            )}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.8rem' }} onClick={handleDownloadManual}><BookOpen size={16} /> Manual</button>
+                                <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.8rem' }} onClick={() => generateDocument('matricula', student)}><FileText size={16} /> Matrícula</button>
+                                <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.8rem' }} onClick={() => generateDocument('recibo', student)}><Printer size={16} /> Recibo</button>
+                                <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.8rem' }} onClick={() => generateDocument('contrato', student)}><FileText size={16} /> Contrato</button>
+                                <button className="btn btn-primary" style={{ justifyContent: 'center', gridColumn: 'span 2', fontSize: '0.85rem', opacity: student.originalData.manual_signed ? 1 : 0.5 }} disabled={!student.originalData.manual_signed} onClick={() => {
+                                    student.originalData.academic_records = [{ final_status: isReprovado ? 'REPROVADO' : 'APROVADO' }];
+                                    generateDocument('certificado', student)
+                                }}><Award size={16} /> Emitir Certificado RT</button>
                             </div>
-                        )}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={handleDownloadManual}><BookOpen size={18} className="text-secondary" /> Imprimir Manual</button>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('matricula', student)}><FileText size={18} />Ficha de Matrícula</button>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('recibo', student)}><Printer size={18} />Recibo de Pagamento</button>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('inscrito', student)}><FileBadge size={18} />Declaração de Inscrito</button>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('termino', student)}><FileBadge size={18} />Declaração de Término</button>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#fff' }} onClick={() => generateDocument('contrato', student)}><FileText size={18} />Contrato (4 Págs)</button>
-                            <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', backgroundColor: '#EFF6FF', color: '#1E40AF', borderColor: '#BFDBFE', gridColumn: '1 / -1' }} onClick={() => generateDocument('melhorias', student)}><FileText size={18} />Pontos de Melhorias</button>
-                            <button className="btn btn-primary" style={{ justifyContent: 'center', opacity: student.originalData.manual_signed ? 1 : 0.5, gridColumn: '1 / -1' }} disabled={!student.originalData.manual_signed} onClick={() => {
-                                student.originalData.academic_records = [{ final_status: isReprovado ? 'REPROVADO' : 'APROVADO' }];
-                                generateDocument('certificado', student)
-                            }}><Award size={18} />Emitir Certificado / Atestado (Oficial)</button>
+                        </div>
+
+                        {/* Documentos Digitais (Upload) */}
+                        <div style={{ padding: '1.5rem', backgroundColor: '#F0F9FF', borderRadius: 'var(--radius-lg)', border: '1px solid #BAE6FD' }}>
+                            <h3 style={{ fontSize: '1.125rem', marginBottom: '1rem', borderBottom: '1px solid #7DD3FC', paddingBottom: '0.5rem', color: '#0369A1' }}>Documentação Digital (Arquivos)</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {[
+                                    { label: 'Foto 3x4', key: 'photo', icon: <Plus size={14} /> },
+                                    { label: 'RG/Identidade', key: 'id', icon: <FileText size={14} /> },
+                                    { label: 'CPF', key: 'cpf', icon: <Paperclip size={14} /> },
+                                    { label: 'Escolaridade', key: 'education', icon: <Award size={14} /> },
+                                    { label: 'Residência', key: 'address', icon: <Printer size={14} /> },
+                                    { label: 'Anexar Prova PDF', key: 'provas', icon: <UploadCloud size={14} /> }
+                                ].map(doc => (
+                                    <div key={doc.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #E0F2FE' }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{doc.label}</span>
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                            {student.originalData[`doc_${doc.key}_url`] && doc.key !== 'provas' && (
+                                                <a href={student.originalData[`doc_${doc.key}_url`]} target="_blank" rel="noreferrer" style={{ fontSize: '0.7rem', color: '#0369A1', fontWeight: 600 }}>Ver</a>
+                                            )}
+                                            {doc.key === 'provas' && student.originalData.doc_exams_url?.length > 0 && (
+                                                <span style={{ fontSize: '0.7rem', color: '#0369A1' }}>{student.originalData.doc_exams_url.length} anexos</span>
+                                            )}
+                                            <label style={{ cursor: 'pointer', color: 'var(--primary)', padding: '0.25rem', backgroundColor: '#EFF6FF', borderRadius: '4px' }}>
+                                                {doc.icon}
+                                                <input type="file" hidden accept=".pdf,image/*" onChange={(e) => handleFileUpload(student.id, e.target.files[0], doc.key)} />
+                                            </label>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            {student.originalData.doc_exams_url?.length > 0 && (
+                                <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#0369A1' }}>
+                                    <strong>Provas Anexadas:</strong>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                        {student.originalData.doc_exams_url.map((exam, idx) => (
+                                            <a key={idx} href={exam.url} target="_blank" rel="noreferrer" style={{ padding: '0.2rem 0.5rem', backgroundColor: '#fff', border: '1px solid #BAE6FD', borderRadius: '4px' }}>Prova {idx+1}</a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
