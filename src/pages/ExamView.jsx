@@ -118,29 +118,48 @@ export default function ExamView() {
                     <h2 style={{ marginBottom: '2rem' }}>{quiz.title}</h2>
                     {questions.map((q, idx) => (
                         <div key={q.id} className="card" style={{ marginBottom: '1.5rem' }}>
-                            <p style={{ fontWeight: 600, marginBottom: '1rem' }}>{idx + 1}. {q.question_text}</p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {q.options.map((option, oidx) => (
-                                    <label key={oidx} style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        gap: '0.75rem', 
-                                        padding: '0.75rem', 
-                                        border: '1px solid #e2e8f0', 
-                                        borderRadius: '8px',
-                                        cursor: 'pointer',
-                                        backgroundColor: answers[q.id] === oidx ? 'var(--primary-light)' : 'transparent',
-                                        borderColor: answers[q.id] === oidx ? 'var(--primary)' : '#e2e8f0'
-                                    }}>
-                                        <input 
-                                            type="radio" 
-                                            name={`q-${q.id}`} 
-                                            checked={answers[q.id] === oidx}
-                                            onChange={() => setAnswers({...answers, [q.id]: oidx})}
-                                        />
-                                        <span style={{ fontSize: '0.875rem' }}>{option}</span>
-                                    </label>
-                                ))}
+                            <div style={{ marginBottom: '1rem' }}>
+                                <p style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.75rem' }}>{idx + 1}. {q.question_text}</p>
+                                {q.image_url && (
+                                    <img src={q.image_url} alt="Ilustração da questão" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e2e8f0' }} />
+                                )}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                {q.options.map((option, oidx) => {
+                                    const hasImage = typeof option === 'object' && option.image_url;
+                                    const optText = typeof option === 'object' ? option.text : option;
+                                    
+                                    return (
+                                        <label key={oidx} style={{ 
+                                            display: 'flex', 
+                                            flexDirection: hasImage ? 'column' : 'row',
+                                            alignItems: hasImage ? 'flex-start' : 'center', 
+                                            gap: '0.75rem', 
+                                            padding: '1rem', 
+                                            border: '1px solid #e2e8f0', 
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            backgroundColor: answers[q.id] === oidx ? 'var(--primary-light)' : 'white',
+                                            borderColor: answers[q.id] === oidx ? 'var(--primary)' : '#e2e8f0',
+                                            boxShadow: answers[q.id] === oidx ? '0 0 0 2px var(--primary-alpha)' : 'none'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
+                                                <input 
+                                                    type="radio" 
+                                                    name={`q-${q.id}`} 
+                                                    checked={answers[q.id] === oidx}
+                                                    onChange={() => setAnswers({...answers, [q.id]: oidx})}
+                                                    style={{ width: '1.25rem', height: '1.25rem' }}
+                                                />
+                                                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{optText}</span>
+                                            </div>
+                                            {hasImage && (
+                                                <img src={option.image_url} alt={`Opção ${oidx}`} style={{ width: '100%', height: '120px', objectFit: 'contain', borderRadius: '4px', marginTop: '0.5rem', backgroundColor: '#f8fafc' }} />
+                                            )}
+                                        </label>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

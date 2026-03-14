@@ -362,6 +362,92 @@ export default function LMSAdmin() {
         if (!error) handleManageQuiz(selectedQuiz)
     }
 
+    const handleQuizImageUpload = async (file, pathPrefix = '') => {
+        if (!file) return null
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${selectedQuiz.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `${pathPrefix}${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from('lms-quiz-images')
+            .upload(filePath, file)
+
+        if (uploadError) {
+            alert('Erro no upload: ' + uploadError.message)
+            return null
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('lms-quiz-images')
+            .getPublicUrl(filePath)
+        
+        return publicUrl
+    }
+
+    const handleAddFullQuestion = async () => {
+        const text = window.prompt('Enunciado da Questão:')
+        if (!text) return
+        
+        let image_url = null
+        if (window.confirm("Deseja anexar uma imagem à PERGUNTA?")) {
+            const input = document.createElement('input')
+            input.type = 'file'
+            input.accept = 'image/*'
+            input.onchange = async (e) => {
+                const file = e.target.files[0]
+                image_url = await handleQuizImageUpload(file, 'questions/')
+                continueWithQuestion(text, image_url)
+            }
+            input.click()
+        } else {
+            continueWithQuestion(text, null)
+        }
+    }
+
+    const continueWithQuestion = async (text, qImage) => {
+        const options = []
+        for (let i = 0; i < 4; i++) {
+            const optText = window.prompt(`Texto da Opção ${String.fromCharCode(65+i)}:`)
+            if (!optText && i < 2) {
+                alert('Pelo menos duas opções são obrigatórias.')
+                return
+            }
+            if (!optText) break
+            
+            let optImage = null
+            if (window.confirm(`Deseja anexar uma imagem à OPÇÃO ${String.fromCharCode(65+i)}?`)) {
+                // Infelizmente prompt/confirm síncrono trava o event loop para uploads pesados.
+                // Mas para MVP de admin funciona. 
+                alert('Selecione o arquivo para esta opção na próxima janela.')
+                // Simulação de input file
+                const file = await new Promise(resolve => {
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.accept = 'image/*'
+                    input.onchange = (e) => resolve(e.target.files[0])
+                    input.click()
+                })
+                optImage = await handleQuizImageUpload(file, 'options/')
+            }
+            options.push({ text: optText, image_url: optImage })
+        }
+
+        const correct = window.prompt('Qual é a correta (0 para A, 1 para B, etc)?', '0')
+
+        const { error } = await supabase
+            .from('lms_questions')
+            .insert([{
+                quiz_id: selectedQuiz.id,
+                question_text: text,
+                image_url: qImage,
+                options: options,
+                correct_option_index: parseInt(correct) || 0
+            }])
+        
+        if (error) alert('Erro ao salvar questão: ' + error.message)
+        else handleManageQuiz(selectedQuiz)
+    }
+
     const handleTogglePublishCourse = async (courseId, currentStatus) => {
         const { error } = await supabase
             .from('lms_courses')
@@ -532,15 +618,33 @@ export default function LMSAdmin() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {quizQuestions.map((q, idx) => (
-                                <div key={q.id} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                                        <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>{idx + 1}. {q.question_text}</p>
-                                        <Trash2 size={16} style={{ color: 'var(--danger)', cursor: 'pointer' }} onClick={() => handleDeleteQuestion(q.id)} />
+                                <div key={q.id} style={{ padding: '1.25rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
+                                        <div>
+                                            <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{idx + 1}. {q.question_text}</p>
+                                            {q.image_url && (
+                                                <img src={q.image_url} alt="Referência" style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '4px', marginTop: '0.5rem', border: '1px solid #ddd' }} />
+                                            )}
+                                        </div>
+                                        <Trash2 size={16} style={{ color: 'var(--danger)', cursor: 'pointer', flexShrink: 0 }} onClick={() => handleDeleteQuestion(q.id)} />
                                     </div>
-                                    <div style={{ marginTop: '0.75rem', paddingLeft: '1rem', borderLeft: '2px solid #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                                         {q.options.map((opt, oidx) => (
-                                            <div key={oidx} style={{ fontSize: '0.8rem', color: oidx === q.correct_option_index ? '#059669' : 'inherit', fontWeight: oidx === q.correct_option_index ? 700 : 400 }}>
-                                                {String.fromCharCode(65 + oidx)}) {opt} {oidx === q.correct_option_index && '✓'}
+                                            <div key={oidx} style={{ 
+                                                fontSize: '0.85rem', 
+                                                padding: '0.75rem',
+                                                backgroundColor: 'white',
+                                                borderRadius: '6px',
+                                                border: oidx === q.correct_option_index ? '2px solid #10b981' : '1px solid #e2e8f0',
+                                                color: oidx === q.correct_option_index ? '#059669' : 'inherit', 
+                                                fontWeight: oidx === q.correct_option_index ? 700 : 400 
+                                            }}>
+                                                <span style={{ marginRight: '0.5rem' }}>{String.fromCharCode(65 + oidx)})</span>
+                                                {typeof opt === 'object' ? opt.text : opt}
+                                                {typeof opt === 'object' && opt.image_url && (
+                                                    <img src={opt.image_url} alt="Opção" style={{ display: 'block', maxWidth: '100%', height: '80px', objectFit: 'contain', marginTop: '0.5rem', borderRadius: '4px' }} />
+                                                )}
+                                                {oidx === q.correct_option_index && <CheckSquare size={14} style={{ marginLeft: '0.5rem', display: 'inline' }} />}
                                             </div>
                                         ))}
                                     </div>
@@ -548,8 +652,8 @@ export default function LMSAdmin() {
                             ))}
                             {quizQuestions.length === 0 && <p className="text-center text-muted">Nenhuma questão cadastrada.</p>}
                             
-                            <button className="btn btn-primary" style={{ marginTop: '1rem', justifyContent: 'center' }} onClick={handleAddQuestion}>
-                                + Adicionar Nova Questão
+                            <button className="btn btn-primary" style={{ marginTop: '1rem', justifyContent: 'center', padding: '1rem' }} onClick={handleAddFullQuestion}>
+                                + Adicionar Questão com Imagem/Texto
                             </button>
                         </div>
                     </div>
