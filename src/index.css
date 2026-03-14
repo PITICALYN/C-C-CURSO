@@ -252,6 +252,64 @@ textarea {
     overflow-y: auto;
 }
 
+/* Responsive Rules */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 80px;
+    }
+    .sidebar span, .sidebar .logo-text, .sidebar img {
+        display: none;
+    }
+    .sidebar a {
+        justify-content: center;
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .app-layout {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 0.5rem;
+    }
+    .sidebar div:first-child {
+        display: none;
+    }
+    nav {
+        flex-direction: row !important;
+        padding: 0.5rem !important;
+        gap: 0.5rem !important;
+    }
+    nav a {
+        padding: 0.5rem !important;
+        min-width: max-content;
+    }
+    .main-content {
+        width: 100%;
+    }
+    .topbar {
+        padding: 0 1rem;
+    }
+    .content-area {
+        padding: 1rem;
+    }
+    .card {
+        padding: 1rem;
+    }
+    
+    /* Grid adjustments for mobile */
+    .grid-2, .grid-3 {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {

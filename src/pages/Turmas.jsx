@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { BookOpen, Users, LogIn, LineChart, Calendar as CalendarIcon, Clock, X, Printer, FileText, Edit, Trash2 } from 'lucide-react'
+import { BookOpen, Users, LogIn, LineChart, Calendar as CalendarIcon, Clock, X, Printer, FileText, Edit, Trash2, UploadCloud } from 'lucide-react'
 import { generateDocument } from '../lib/pdfGenerator'
 import { useAuth } from '../contexts/AuthContext'
 
