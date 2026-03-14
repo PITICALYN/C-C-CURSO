@@ -93,13 +93,42 @@ export default function LessonPlayer() {
             })
             setLessonStatus(statusMap)
 
-            // Inicializar cronômetro da aula atual com o tempo já assistido
             if (statusMap[lessonId]) {
                 setSecondsWatched(statusMap[lessonId].watched_seconds || 0)
                 setIsCompleted(statusMap[lessonId].is_completed || false)
             }
+
+            fetchQuestions()
         }
         setLoading(false)
+    }
+
+    const fetchQuestions = async () => {
+        const { data } = await supabase
+            .from('lms_lesson_questions')
+            .select('*, student:users!student_id(full_name)')
+            .eq('lesson_id', lessonId)
+            .order('created_at', { ascending: false })
+        if (data) setLessonQuestions(data)
+    }
+
+    const handleSubmitQuestion = async () => {
+        if (!newQuestion.trim()) return
+        
+        const { error } = await supabase
+            .from('lms_lesson_questions')
+            .insert([{
+                lesson_id: lessonId,
+                student_id: session.user.id,
+                question_text: newQuestion
+            }])
+        
+        if (!error) {
+            setNewQuestion('')
+            fetchQuestions()
+        } else {
+            alert('Erro ao enviar pergunta: ' + error.message)
+        }
     }
 
     useEffect(() => {
@@ -240,7 +269,6 @@ export default function LessonPlayer() {
                         )}
                     </div>
 
-                    {/* FÓRUM DE DÚVIDAS */}
                     <div style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid #334155' }}>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>Fórum de Dúvidas</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -248,19 +276,40 @@ export default function LessonPlayer() {
                                 className="form-control" 
                                 style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: 'white', minHeight: '80px' }}
                                 placeholder="Tire sua dúvida sobre esta aula..."
+                                value={newQuestion}
+                                onChange={(e) => setNewQuestion(e.target.value)}
                             ></textarea>
-                            <button className="btn btn-primary" style={{ alignSelf: 'flex-end' }}>Enviar Pergunta</button>
+                            <button 
+                                className="btn btn-primary" 
+                                style={{ alignSelf: 'flex-end' }}
+                                onClick={handleSubmitQuestion}
+                                disabled={!newQuestion.trim()}
+                            >
+                                Enviar Pergunta
+                            </button>
                         </div>
                         
                         <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div style={{ padding: '1rem', backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
-                                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>João Silva em 13/03/2026</p>
-                                <p style={{ fontSize: '0.875rem' }}>Professor, qual o tempo de validade desta certificação?</p>
-                                <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#334155', borderRadius: '6px' }}>
-                                    <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>Resposta do Instrutor:</p>
-                                    <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>A validade padrão é de 5 anos, conforme normas da Abendi.</p>
+                            {lessonQuestions.map(q => (
+                                <div key={q.id} style={{ padding: '1.25rem', backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: q.answer_text ? '4px solid #10b981' : '4px solid #64748b' }}>
+                                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                        {q.student?.full_name} em {new Date(q.created_at).toLocaleDateString('pt-BR')}
+                                    </p>
+                                    <p style={{ fontSize: '0.875rem', color: 'white' }}>{q.question_text}</p>
+                                    
+                                    {q.answer_text ? (
+                                        <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#0f172a', borderRadius: '6px', border: '1px solid #1e293b' }}>
+                                            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#10b981' }}>Resposta da Equipe:</p>
+                                            <p style={{ fontSize: '0.875rem', marginTop: '0.25rem', color: '#cbd5e1' }}>{q.answer_text}</p>
+                                        </div>
+                                    ) : (
+                                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem', fontStyle: 'italic' }}>Aguardando resposta da equipe pedagógica...</p>
+                                    )}
                                 </div>
-                            </div>
+                            ))}
+                            {lessonQuestions.length === 0 && (
+                                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.875rem', marginTop: '1rem' }}>Nenhuma dúvida enviada nesta aula ainda.</p>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -10,6 +10,9 @@ export default function Professor() {
     // Data from Supabase
     const [classes, setClasses] = useState([])
     const [classStudents, setClassStudents] = useState([])
+    const [eadDoubts, setEadDoubts] = useState([])
+    const [answeringId, setAnsweringId] = useState(null)
+    const [answerText, setAnswerText] = useState('')
 
     // Form States
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0])
@@ -58,7 +61,42 @@ export default function Professor() {
 
     useEffect(() => {
         if (activeTab === 'minhasTurmas') fetchClasses()
+        if (activeTab === 'duvidasEad') fetchEadDoubts()
     }, [activeTab])
+
+    const fetchEadDoubts = async () => {
+        setLoading(true)
+        const { data, error } = await supabase
+            .from('lms_lesson_questions')
+            .select('*, student:users!student_id(full_name), lesson:lms_lessons(title, lms_modules(lms_courses(title)))')
+            .is('answer_text', null)
+            .order('created_at', { ascending: true })
+        if (data) setEadDoubts(data)
+        setLoading(false)
+    }
+
+    const handleSendAnswer = async (id) => {
+        if (!answerText.trim()) return
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        const { error } = await supabase
+            .from('lms_lesson_questions')
+            .update({
+                answer_text: answerText,
+                answered_by: user.id,
+                answered_at: new Date().toISOString()
+            })
+            .eq('id', id)
+
+        if (!error) {
+            setAnswerText('')
+            setAnsweringId(null)
+            fetchEadDoubts()
+            alert('Resposta enviada com sucesso!')
+        } else {
+            alert('Erro ao salvar resposta: ' + error.message)
+        }
+    }
 
     const handleOpenDiario = (turma) => {
         setSelectedClass(turma)
@@ -210,6 +248,58 @@ export default function Professor() {
         )
     }
 
+    const renderDoubtEad = () => (
+        <div className="animate-fade-in">
+            {loading ? <p>Buscando dúvidas pendentes...</p> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {eadDoubts.map(doubt => (
+                        <div key={doubt.id} className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                <div>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 600 }}>{doubt.student?.full_name}</h4>
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                        {doubt.lesson?.lms_modules?.lms_courses?.title} &rarr; {doubt.lesson?.title}
+                                    </p>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {new Date(doubt.created_at).toLocaleDateString()}
+                                </span>
+                            </div>
+                            <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f1f5f9', borderRadius: '8px' }}>
+                                "{doubt.question_text}"
+                            </p>
+                            
+                            {answeringId === doubt.id ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <textarea 
+                                        className="form-control" 
+                                        rows="3" 
+                                        placeholder="Digite sua resposta técnica aqui..."
+                                        value={answerText}
+                                        onChange={(e) => setAnswerText(e.target.value)}
+                                    ></textarea>
+                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                        <button className="btn btn-secondary" onClick={() => setAnsweringId(null)}>Cancelar</button>
+                                        <button className="btn btn-primary" onClick={() => handleSendAnswer(doubt.id)}>Enviar Resposta</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button className="btn btn-primary" style={{ alignSelf: 'flex-end' }} onClick={() => setAnsweringId(doubt.id)}>
+                                    Responder Aluno
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    {eadDoubts.length === 0 && (
+                        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+                            <p className="text-secondary">🎉 Não há dúvidas pendentes de resposta no momento!</p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+
     return (
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -220,11 +310,18 @@ export default function Professor() {
                     className={`btn ${activeTab === 'minhasTurmas' || activeTab === 'diario' ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setActiveTab('minhasTurmas')}
                 >
-                    <List size={16} /> Fichário Eletrônico
+                    <List size={16} /> Fichário Eletrônico (Presencial)
+                </button>
+                <button
+                    className={`btn ${activeTab === 'duvidasEad' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveTab('duvidasEad')}
+                >
+                    <BookOpen size={16} /> Dúvidas Pedagógicas (EAD)
                 </button>
             </div>
             {activeTab === 'minhasTurmas' && renderTurmas()}
             {activeTab === 'diario' && renderDiario()}
+            {activeTab === 'duvidasEad' && renderDoubtEad()}
         </div>
     )
 }

@@ -17,6 +17,9 @@ export default function LMSAdmin() {
     const [selectedQuiz, setSelectedQuiz] = useState(null)
     const [quizQuestions, setQuizQuestions] = useState([])
     const [isEditingQuiz, setIsEditingQuiz] = useState(false)
+    const [eadDoubts, setEadDoubts] = useState([])
+    const [answeringDoubtId, setAnsweringDoubtId] = useState(null)
+    const [doubtAnswerText, setDoubtAnswerText] = useState('')
 
     const [courseForm, setCourseForm] = useState({
         title: '',
@@ -80,6 +83,37 @@ export default function LMSAdmin() {
         if (data) setPrices(data)
     }
 
+    const fetchAllDoubts = async () => {
+        setLoading(true)
+        const { data } = await supabase
+            .from('lms_lesson_questions')
+            .select('*, student:users!student_id(full_name), lesson:lms_lessons(title, lms_modules(lms_courses(title)))')
+            .order('created_at', { ascending: false })
+        if (data) setEadDoubts(data)
+        setLoading(false)
+    }
+
+    const handleAnswerDoubt = async (id) => {
+        if (!doubtAnswerText.trim()) return
+        const { data: { user } } = await supabase.auth.getUser()
+
+        const { error } = await supabase
+            .from('lms_lesson_questions')
+            .update({
+                answer_text: doubtAnswerText,
+                answered_by: user.id,
+                answered_at: new Date().toISOString()
+            })
+            .eq('id', id)
+        
+        if (!error) {
+            setDoubtAnswerText('')
+            setAnsweringDoubtId(null)
+            fetchAllDoubts()
+            alert('Resposta enviada!')
+        }
+    }
+
     useEffect(() => {
         fetchCourses()
         fetchPrices()
@@ -131,6 +165,9 @@ export default function LMSAdmin() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Cursos EAD</h2>
                 <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button className="btn btn-secondary" onClick={() => setView('doubts')}>
+                        Central de Dúvidas
+                    </button>
                     <button className="btn btn-secondary" onClick={() => setPricingView(!pricingView)}>
                         {pricingView ? 'Ver Cursos' : 'Gerenciar Preços'}
                     </button>
@@ -886,6 +923,60 @@ export default function LMSAdmin() {
                     </div>
                 </div>
             )}
+        </div>
+    )
+
+    const renderDoubts = () => (
+        <div className="animate-fade-in">
+            <button className="btn btn-secondary" style={{ marginBottom: '1.5rem' }} onClick={() => setView('list')}>&larr; Voltar para listagem</button>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Central Pedagógica (Todas as Dúvidas)</h3>
+            
+            {loading ? <p>Carregando histórico completo...</p> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {eadDoubts.map(d => (
+                        <div key={d.id} className="card" style={{ borderLeft: d.answer_text ? '4px solid #10b981' : '4px solid #ef4444' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                    <strong>{d.student?.full_name}</strong> em {d.lesson?.lms_modules?.lms_courses?.title} &rarr; {d.lesson?.title}
+                                </div>
+                                <span style={{ fontSize: '0.75rem' }}>{new Date(d.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>"{d.question_text}"</p>
+                            
+                            {d.answer_text ? (
+                                <div style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>Resposta enviada:</p>
+                                    <p style={{ fontSize: '0.85rem' }}>{d.answer_text}</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {answeringDoubtId === d.id ? (
+                                        <>
+                                            <textarea className="form-control" rows="2" value={doubtAnswerText} onChange={e => setDoubtAnswerText(e.target.value)} placeholder="Escreva a resposta pedagógica..."></textarea>
+                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => setAnsweringDoubtId(null)}>Cancelar</button>
+                                                <button className="btn btn-primary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleAnswerDoubt(d.id)}>Enviar Resposta</button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <button className="btn btn-secondary" style={{ alignSelf: 'flex-end', fontSize: '0.8rem' }} onClick={() => setAnsweringDoubtId(d.id)}>Responder</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {eadDoubts.length === 0 && <p className="text-secondary text-center" style={{ padding: '2rem' }}>Nenhuma dúvida enviada no sistema.</p>}
+                </div>
+            )}
+        </div>
+    )
+
+    return (
+        <div className="lms-admin-container">
+            {view === 'list' && renderCourseList()}
+            {view === 'add_course' && renderAddCourse()}
+            {view === 'manage_course' && renderManageCourse()}
+            {view === 'doubts' && renderDoubts()}
         </div>
     )
 }
