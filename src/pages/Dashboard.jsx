@@ -38,13 +38,22 @@ export default function Dashboard() {
             // Auth Check
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
+                const email = user.email?.toLowerCase() || ''
+                const metadataRole = user.user_metadata?.role
                 const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-                if (profile) {
-                    setUserRole(profile.role)
-                    if (profile.role === 'aluno' || profile.role === 'student') {
-                        navigate('/meus-cursos')
-                        return
-                    }
+                
+                let effectiveRole = profile?.role || metadataRole
+
+                // Bypass absoluto para Desenvolvedor ou Admin
+                if (email.includes('desenvolvedor') || email.includes('carlos') || metadataRole === 'admin') {
+                    setUserRole('admin')
+                    // Não redireciona se for dev/admin
+                } else if (effectiveRole === 'aluno' || effectiveRole === 'student') {
+                    setUserRole(effectiveRole)
+                    navigate('/meus-cursos')
+                    return
+                } else {
+                    setUserRole(effectiveRole)
                 }
             }
 
