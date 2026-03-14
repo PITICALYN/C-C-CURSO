@@ -320,15 +320,15 @@ export default function LMSAdmin() {
         if (minutes === null) return
         const min_watch_time_sec = (parseInt(minutes) || 0) * 60
 
-        const type = window.confirm('Deseja adicionar um VÍDEO? (Clique em OK para Vídeo ou em CANCELAR para escolher um arquivo PDF)')
+        const choice = window.prompt('Qual o tipo de conteúdo?\nDigite 1 para VÍDEO (YouTube/Vimeo)\nDigite 2 para ARQUIVO (PDF)', '1')
         
         let video_url = null
         let pdf_url = null
 
-        if (type) {
+        if (choice === '1') {
             video_url = window.prompt('URL do Vídeo (YouTube/Vimeo):')
             if (!video_url) return
-        } else {
+        } else if (choice === '2') {
             const file = await new Promise(resolve => {
                 const input = document.createElement('input')
                 input.type = 'file'
