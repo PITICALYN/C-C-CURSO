@@ -73,6 +73,7 @@ export default function Alunos() {
                 cpf: s.cpf,
                 class: s.classes ? s.classes.name : 'Sem Turma',
                 status: 'Ativo',
+                photo: s.doc_photo_url,
                 originalData: s
             }))
             setStudents(formatted)
@@ -283,6 +284,7 @@ export default function Alunos() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
                             <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                <th style={{ padding: '1rem' }}>Foto</th>
                                 <th style={{ padding: '1rem' }}>Matrícula</th>
                                 <th style={{ padding: '1rem' }}>Nome Completo</th>
                                 <th style={{ padding: '1rem' }}>CPF</th>
@@ -296,6 +298,17 @@ export default function Alunos() {
                                 <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center' }}>Carregando dados da Nuvem...</td></tr>
                             ) : filteredStudents.map((s, idx) => (
                                 <tr key={s.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '1rem' }}>
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#f1f5f9', border: '1px solid var(--border-color)' }}>
+                                            {s.photo ? (
+                                                <img src={s.photo} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1' }}>
+                                                    <Search size={20} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>#{s.num}</td>
                                     <td style={{ padding: '1rem', fontWeight: 500 }}>{s.name}</td>
                                     <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{s.cpf}</td>
@@ -457,8 +470,22 @@ export default function Alunos() {
             <div className="animate-fade-in">
                 <button className="btn btn-secondary" style={{ marginBottom: '1rem' }} onClick={() => setView('list')}>&larr; Voltar para Listagem</button>
                 <div className="card" style={{ marginBottom: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                        <div><h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Ficha: {student.name}</h2><p className="text-muted">CPF: {student.cpf}</p></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+                        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f1f5f9', border: '2px solid var(--primary)' }}>
+                                {student.originalData.doc_photo_url ? (
+                                    <img src={student.originalData.doc_photo_url} alt={student.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1' }}>
+                                        <Search size={32} />
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{student.name}</h2>
+                                <p className="text-muted">CPF: {student.cpf}</p>
+                            </div>
+                        </div>
                         <div style={{ padding: '0.5rem 1rem', borderRadius: '999px', fontWeight: 600, backgroundColor: statusBadge.bg, color: statusBadge.color }}>{statusBadge.label}</div>
                     </div>
 
