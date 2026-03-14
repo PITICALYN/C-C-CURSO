@@ -31,34 +31,50 @@ export default function AreaAluno() {
         setLoading(true)
         if (!session?.user?.id) return
 
-        // 1. Buscar cursos publicados (Simulando matrícula: no futuro teremos tabela de inscrições)
-        // Por enquanto, mostramos todos os cursos publicados como teste
-        const { data: courses, error } = await supabase
-            .from('lms_courses')
-            .select('*')
-            .eq('is_published', true)
-        
-        if (!error && courses) {
-            setMyCourses(courses)
-        }
-
-        // 2. Buscar turmas presenciais vinculadas ao aluno (Calendário Prático)
+        // 1. Buscar o nome completo do perfil do usuário logado
         const { data: profile } = await supabase
             .from('users')
             .select('full_name')
             .eq('id', session.user.id)
             .single()
 
-        if (profile) {
-            const { data: students } = await supabase
-                .from('students')
-                .select('turma_id, classes(name, course_name, start_date)')
-                .ilike('full_name', `%${profile.full_name}%`)
+        if (!profile) {
+            setLoading(false)
+            return
+        }
+
+        // 2. Buscar matrículas (students) com esse nome que possuem acesso EAD habilitado
+        const { data: enrollments } = await supabase
+            .from('students')
+            .select(`
+                has_lms_access,
+                classes(lms_course_id)
+            `)
+            .ilike('full_name', `%${profile.full_name}%`)
+            .eq('has_lms_access', true)
+
+        // 3. Extrair IDs de cursos vinculados às turmas que o aluno tem acesso
+        const courseIds = enrollments?.map(e => e.classes?.lms_course_id).filter(Boolean) || []
+
+        if (courseIds.length > 0) {
+            const { data: courses } = await supabase
+                .from('lms_courses')
+                .select('*')
+                .in('id', courseIds)
+                .eq('is_published', true)
             
-            if (students) {
-                const dates = students.map(s => s.classes).filter(Boolean)
-                setUpcomingPractical(dates)
-            }
+            if (courses) setMyCourses(courses)
+        }
+
+        // 4. Buscar turmas presenciais para o calendário (mesma lógica anterior)
+        const { data: practicalStudents } = await supabase
+            .from('students')
+            .select('turma_id, classes(name, course_name, start_date)')
+            .ilike('full_name', `%${profile.full_name}%`)
+        
+        if (practicalStudents) {
+            const dates = practicalStudents.map(s => s.classes).filter(Boolean)
+            setUpcomingPractical(dates)
         }
 
         setLoading(false)

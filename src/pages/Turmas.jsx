@@ -19,8 +19,15 @@ export default function Turmas() {
     const [formData, setFormData] = useState({
         name: '',
         course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
-        start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136'
+        start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136',
+        lms_course_id: ''
     })
+    const [lmsCourses, setLmsCourses] = useState([])
+
+    const fetchLmsCourses = async () => {
+        const { data } = await supabase.from('lms_courses').select('id, title').eq('is_published', true)
+        if (data) setLmsCourses(data)
+    }
 
     // Função flexível para contar dias do período dependendo da modalidade
     const countCourseDays = (startDateStr, endDateStr, isSaturdayOnly) => {
@@ -69,6 +76,7 @@ export default function Turmas() {
                 .from('classes')
                 .select(`
                     id, name, course_name, start_date, actual_start_date, predicted_end_date, actual_end_date, schedule, duration,
+                    lms_course_id,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -114,6 +122,7 @@ export default function Turmas() {
     useEffect(() => {
         fetchClasses()
         fetchUserProfile()
+        fetchLmsCourses()
     }, [session])
 
     const handleFormChange = (e) => {
@@ -150,7 +159,8 @@ export default function Turmas() {
             start_date: formData.start_date ? formData.start_date : null,
             predicted_end_date: formData.predicted_end_date ? formData.predicted_end_date : null,
             schedule: formData.schedule,
-            duration: formData.duration
+            duration: formData.duration,
+            lms_course_id: formData.lms_course_id || null
         }
 
         if (isEditing && editingId) {
@@ -182,7 +192,8 @@ export default function Turmas() {
             start_date: turma.startDate || '',
             predicted_end_date: turma.predictedEndDate || '',
             schedule: turma.schedule || '',
-            duration: turma.duration || ''
+            duration: turma.duration || '',
+            lms_course_id: turma.lms_course_id || ''
         })
         setIsEditing(true)
         setEditingId(turma.id)
@@ -253,6 +264,18 @@ export default function Turmas() {
         }
     }
 
+    const toggleStudentEad = async (studentId, currentStatus) => {
+        const { error } = await supabase
+            .from('students')
+            .update({ has_lms_access: !currentStatus })
+            .eq('id', studentId)
+        
+        if (error) alert('Erro ao atualizar acesso EAD')
+        else {
+            setClassStudents(prev => prev.map(s => s.id === studentId ? { ...s, has_lms_access: !currentStatus } : s))
+        }
+    }
+
     const handleOpenClassStudents = async (turma) => {
         setSelectedClassData(turma)
         setModalLoading(true)
@@ -261,7 +284,7 @@ export default function Turmas() {
         const { data, error } = await supabase
             .from('students')
             .select(`
-                id, full_name, cpf, manual_signed,
+                id, full_name, cpf, manual_signed, has_lms_access, is_online_only,
                 attendance_records ( status ),
                 academic_records ( grade, final_status )
             `)
@@ -432,6 +455,7 @@ export default function Turmas() {
                                         <th style={{ padding: '0.75rem' }}>Nome do Aluno(a)</th>
                                         <th style={{ padding: '0.75rem' }}>CPF</th>
                                         <th style={{ padding: '0.75rem' }}>Manual?</th>
+                                        <th style={{ padding: '0.75rem' }}>Acesso EAD</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -440,6 +464,15 @@ export default function Turmas() {
                                             <td style={{ padding: '0.75rem', fontWeight: 500 }}>{st.full_name}</td>
                                             <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{st.cpf}</td>
                                             <td style={{ padding: '0.75rem' }}>{st.manual_signed ? 'Sim' : 'Não'}</td>
+                                            <td style={{ padding: '0.75rem' }}>
+                                                <button 
+                                                    onClick={() => toggleStudentEad(st.id, st.has_lms_access)}
+                                                    className={`btn ${st.has_lms_access ? 'btn-success' : 'btn-secondary'}`}
+                                                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}
+                                                >
+                                                    {st.has_lms_access ? 'Ativado' : 'Inativo'}
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                     {classStudents.length === 0 && (
@@ -482,6 +515,16 @@ export default function Turmas() {
                             <option value="Treinamento Dimensional – Topografia (CD-TO)">Treinamento Dimensional – Topografia (CD-TO)</option>
                             <option value="Treinamento Dimensional - Mecânica- (CD-CM)">Treinamento Dimensional - Mecânica- (CD-CM)</option>
                         </select>
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                        <label className="form-label">Vincular Conteúdo Online (LMS)</label>
+                        <select className="form-control" name="lms_course_id" value={formData.lms_course_id} onChange={handleFormChange}>
+                            <option value="">Nenhum curso vinculado</option>
+                            {lmsCourses.map(c => (
+                                <option key={c.id} value={c.id}>{c.title}</option>
+                            ))}
+                        </select>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Selecione o curso que os alunos desta turma poderão acessar no portal.</span>
                     </div>
                     <div className="form-group"><label className="form-label">Data de Início Programado</label><input type="date" className="form-control" name="start_date" value={formData.start_date} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Previsão de Término</label><input type="date" className="form-control" name="predicted_end_date" value={formData.predicted_end_date} onChange={handleFormChange} /></div>
