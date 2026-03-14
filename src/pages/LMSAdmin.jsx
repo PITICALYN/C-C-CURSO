@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare } from 'lucide-react'
+import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare, Clock } from 'lucide-react'
 
 export default function LMSAdmin() {
     const navigate = useNavigate()
@@ -21,6 +21,8 @@ export default function LMSAdmin() {
     const [courseForm, setCourseForm] = useState({
         title: '',
         description: '',
+        thumbnail_url: '',
+        min_theoretical_hours: 0,
         is_published: false
     })
 
@@ -83,19 +85,36 @@ export default function LMSAdmin() {
         fetchPrices()
     }, [])
 
-    const handleCreateCourse = async () => {
+    const handleSaveCourse = async () => {
         if (!courseForm.title) return alert('Título é obrigatório')
         
-        const { data, error } = await supabase
-            .from('lms_courses')
-            .insert([courseForm])
-            .select()
+        let error
+        if (selectedCourse) {
+            // Update
+            const { error: err } = await supabase
+                .from('lms_courses')
+                .update({
+                    title: courseForm.title,
+                    description: courseForm.description,
+                    thumbnail_url: courseForm.thumbnail_url,
+                    min_theoretical_hours: courseForm.min_theoretical_hours
+                })
+                .eq('id', selectedCourse.id)
+            error = err
+        } else {
+            // Create
+            const { error: err } = await supabase
+                .from('lms_courses')
+                .insert([courseForm])
+            error = err
+        }
         
         if (error) {
-            alert('Erro ao criar curso: ' + error.message)
+            alert('Erro ao salvar curso: ' + error.message)
         } else {
-            alert('Curso criado com sucesso!')
-            setCourseForm({ title: '', description: '', is_published: false })
+            alert('Curso salvo com sucesso!')
+            setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false })
+            setSelectedCourse(null)
             setView('list')
             fetchCourses()
         }
@@ -168,16 +187,36 @@ export default function LMSAdmin() {
                     {courses.map(course => (
                         <div key={course.id} className="card" style={{ cursor: 'pointer' }} onClick={() => handleSelectCourse(course)}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                <h3 style={{ fontSize: '1.25rem' }}>{course.title}</h3>
-                                <span style={{ 
-                                    fontSize: '0.75rem', 
-                                    padding: '0.25rem 0.5rem', 
-                                    borderRadius: '4px',
-                                    backgroundColor: course.is_published ? '#DEF7EC' : '#F3F4F6',
-                                    color: course.is_published ? '#03543F' : '#374151'
-                                }}>
-                                    {course.is_published ? 'Publicado' : 'Rascunho'}
-                                </span>
+                                <div style={{ flex: 1 }}>
+                                    <h3 style={{ fontSize: '1.25rem' }}>{course.title}</h3>
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mín: {course.min_theoretical_hours || 0}h teóricas</p>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                                    <span style={{ 
+                                        fontSize: '0.75rem', 
+                                        padding: '0.25rem 0.5rem', 
+                                        borderRadius: '4px',
+                                        backgroundColor: course.is_published ? '#DEF7EC' : '#F3F4F6',
+                                        color: course.is_published ? '#03543F' : '#374151',
+                                        whiteSpace: 'nowrap'
+                                    }}>
+                                        {course.is_published ? 'Publicado' : 'Rascunho'}
+                                    </span>
+                                    <button className="btn btn-secondary" style={{ padding: '0.2rem 0.4rem' }} onClick={(e) => {
+                                        e.stopPropagation()
+                                        setCourseForm({
+                                            title: course.title,
+                                            description: course.description || '',
+                                            thumbnail_url: course.thumbnail_url || '',
+                                            min_theoretical_hours: course.min_theoretical_hours || 0,
+                                            is_published: course.is_published
+                                        })
+                                        setSelectedCourse(course)
+                                        setView('add_course')
+                                    }}>
+                                        <Edit size={14} /> Editar
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-secondary" style={{ fontSize: '0.875rem', lineHeight: 1.5 }}>
                                 {course.description || 'Sem descrição.'}
@@ -226,9 +265,33 @@ export default function LMSAdmin() {
                         placeholder="Descreva o que o aluno aprenderá..."
                     />
                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">Thumbnail (URL)</label>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            value={courseForm.thumbnail_url} 
+                            onChange={e => setCourseForm({...courseForm, thumbnail_url: e.target.value})}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Carga Horária Teórica (Horas)</label>
+                        <input 
+                            type="number" 
+                            className="form-control" 
+                            value={courseForm.min_theoretical_hours} 
+                            onChange={e => setCourseForm({...courseForm, min_theoretical_hours: parseInt(e.target.value) || 0})}
+                        />
+                    </div>
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                    <button className="btn btn-secondary" onClick={() => setView('list')}>Cancelar</button>
-                    <button className="btn btn-primary" onClick={handleCreateCourse}>Criar Curso</button>
+                    <button className="btn btn-secondary" onClick={() => {
+                        setSelectedCourse(null)
+                        setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false })
+                        setView('list')
+                    }}>Cancelar</button>
+                    <button className="btn btn-primary" onClick={handleSaveCourse}>{selectedCourse ? 'Salvar Alterações' : 'Criar Curso'}</button>
                 </div>
             </div>
         </div>
@@ -260,6 +323,7 @@ export default function LMSAdmin() {
                 module_id: moduleId, 
                 title, 
                 video_url, 
+                min_watch_time_sec: (parseInt(window.prompt('Tempo mínimo de estudo p/ esta aula (MINUTOS):', '10')) || 0) * 60,
                 order_index: (lessons[moduleId]?.length || 0) 
             }])
         
@@ -280,8 +344,18 @@ export default function LMSAdmin() {
 
     const handleEditLesson = async (lesson) => {
         const newTitle = window.prompt('Novo título da aula:', lesson.title)
-        if (!newTitle || newTitle === lesson.title) return
-        const { error } = await supabase.from('lms_lessons').update({ title: newTitle }).eq('id', lesson.id)
+        if (!newTitle) return
+        
+        const newTime = window.prompt('Tempo mínimo de estudo (EM MINUTOS):', Math.round((lesson.min_watch_time_sec || 0) / 60))
+        
+        const { error } = await supabase
+            .from('lms_lessons')
+            .update({ 
+                title: newTitle,
+                min_watch_time_sec: (parseInt(newTime) || 0) * 60
+            })
+            .eq('id', lesson.id)
+        
         if (error) alert('Erro ao editar: ' + error.message)
         else fetchCourseDetails(selectedCourse.id)
     }
@@ -504,6 +578,53 @@ export default function LMSAdmin() {
                     <button className="btn btn-primary" onClick={handleCreateModule}><Plus size={16} /> Novo Módulo</button>
                 </div>
             </div>
+
+            {/* RESUMO DE CARGA HORÁRIA */}
+            {(() => {
+                let totalMin = 0
+                Object.values(lessons).forEach(lessArr => {
+                    lessArr.forEach(l => totalMin += (l.min_watch_time_sec || 0) / 60)
+                })
+                Object.values(quizzes).forEach(q => {
+                    totalMin += (q.time_limit_minutes || 0)
+                })
+                
+                const goalMin = (selectedCourse?.min_theoretical_hours || 0) * 60
+                const isUnder = totalMin < goalMin
+                
+                return (
+                    <div style={{ 
+                        padding: '1rem', 
+                        backgroundColor: isUnder ? '#FEF2F2' : '#F0FDF4', 
+                        border: `1px solid ${isUnder ? '#FECACA' : '#BBF7D0'}`, 
+                        borderRadius: '8px', 
+                        marginBottom: '2rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ padding: '0.5rem', backgroundColor: isUnder ? '#EF4444' : '#10B981', color: 'white', borderRadius: '50%' }}>
+                                <Clock size={20} />
+                            </div>
+                            <div>
+                                <h4 style={{ margin: 0, fontSize: '1rem', color: isUnder ? '#991B1B' : '#065F46' }}>
+                                    Carga Horária: {Math.floor(totalMin / 60)}h {Math.round(totalMin % 60)}min / {selectedCourse?.min_theoretical_hours}h total
+                                </h4>
+                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: isUnder ? '#B91C1C' : '#059669' }}>
+                                    {isUnder 
+                                        ? `Atenção: Faltam ${Math.floor((goalMin - totalMin) / 60)}h ${Math.round((goalMin - totalMin) % 60)}min para cumprir a meta.`
+                                        : 'Meta de carga horária teórica atingida! ✅'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: isUnder ? '#EF4444' : '#10B981' }}>
+                            {Math.round((totalMin / (goalMin || 1)) * 100)}%
+                        </div>
+                    </div>
+                )
+            })()}
 
             <div className="grid" style={{ gridTemplateColumns: '1fr', gap: '1rem' }}>
                 {modules.map((mod, idx) => (
