@@ -316,6 +316,10 @@ export default function LMSAdmin() {
         const title = window.prompt('Título da Aula:')
         if (!title) return
 
+        const minutes = window.prompt('Tempo estimado p/ esta aula (MINUTOS):', '10')
+        if (minutes === null) return
+        const min_watch_time_sec = (parseInt(minutes) || 0) * 60
+
         const type = window.confirm('Deseja adicionar um VÍDEO? (Clique em OK para Vídeo ou em CANCELAR para escolher um arquivo PDF)')
         
         let video_url = null
@@ -360,7 +364,7 @@ export default function LMSAdmin() {
                 title, 
                 video_url: video_url || null, 
                 pdf_url: pdf_url || null,
-                min_watch_time_sec: (parseInt(window.prompt('Tempo mínimo de estudo p/ esta aula (MINUTOS):', '10')) || 0) * 60,
+                min_watch_time_sec,
                 order_index: (lessons[moduleId]?.length || 0) 
             }])
         
@@ -552,28 +556,29 @@ export default function LMSAdmin() {
         const options = []
         for (let i = 0; i < 5; i++) {
             const letter = String.fromCharCode(65+i)
-            const optText = window.prompt(`Texto da Opção ${letter} (Deixe vazio para encerrar):`)
-            
-            if (!optText && i < 2) {
-                alert('Pelo menos duas opções são obrigatórias (A e B).')
-                return
-            }
-            if (!optText) break
+            let optText = window.prompt(`Texto da Opção ${letter} (Deixe VAZIO se for usar APENAS IMAGEM ou para encerrar):`)
             
             let optImage = null
             if (window.confirm(`Deseja anexar uma imagem à OPÇÃO ${letter}?`)) {
                 const file = await new Promise(resolve => {
                     const input = document.createElement('input')
-                    input.type = 'file'
-                    input.accept = 'image/*'
-                    input.onchange = (e) => resolve(e.target.files[0])
-                    input.click()
+                    input.type = 'file'; input.accept = 'image/*'
+                    input.onchange = (e) => resolve(e.target.files[0]); input.click()
                 })
                 if (file) {
                     optImage = await handleQuizImageUpload(file, 'options/')
                 }
             }
-            options.push({ text: optText, image_url: optImage })
+
+            // Se não tem texto E não tem imagem, e já temos pelo menos 2 opções, encerramos aqui.
+            if (!optText && !optImage) {
+                if (i >= 2) break;
+                // Se é A ou B e não tem nada, a gente avisa.
+                alert(`A opção ${letter} precisa de pelo menos Texto ou Imagem.`)
+                return;
+            }
+
+            options.push({ text: optText || "", image_url: optImage })
         }
 
         const correct = window.prompt(`Qual é a correta (0 para A, 1 para B, 2 para C, 3 para D, 4 para E)?`, '0')
