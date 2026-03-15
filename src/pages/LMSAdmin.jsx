@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare, Clock, Trophy, Eye, Printer, Search, Award } from 'lucide-react'
+import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare, Clock, Trophy, Eye, Printer, Search, Award, UploadCloud } from 'lucide-react'
 
 export default function LMSAdmin() {
     const navigate = useNavigate()
@@ -45,6 +45,31 @@ export default function LMSAdmin() {
         thumbnail_url: '',
         min_theoretical_hours: 0,
         is_published: false
+    })
+
+    // Estados para FORMULÁRIOS VISUAIS (Substituindo Prompts)
+    const [showModuleForm, setShowModuleForm] = useState(false)
+    const [moduleForm, setModuleForm] = useState({ title: '', id: null }) // id para edição
+
+    const [showLessonForm, setShowLessonForm] = useState(false)
+    const [lessonForm, setLessonForm] = useState({
+        id: null, // para edição
+        moduleId: null,
+        title: '',
+        type: 'video', // video | pdf
+        video_url: '',
+        pdf_url: '',
+        min_minutes: 0
+    })
+
+    const [showQuizForm, setShowQuizForm] = useState(false)
+    const [quizForm, setQuizForm] = useState({
+        id: null,
+        moduleId: null,
+        title: '',
+        type: 'exercise', // exercise | final_exam
+        time_limit: 60,
+        passing_grade: 70
     })
 
     const fetchCourses = async () => {
@@ -367,160 +392,90 @@ export default function LMSAdmin() {
         </div>
     )
 
-    const handleCreateModule = async () => {
-        const title = window.prompt('Título do Novo Módulo:')
-        if (!title) return
-
-        const { error } = await supabase
-            .from('lms_modules')
-            .insert([{ course_id: selectedCourse.id, title, order_index: modules.length }])
-        
-        if (error) {
-            alert('Erro ao criar módulo: ' + error.message)
+    const handleOpenModuleForm = (mod = null) => {
+        if (mod) {
+            setModuleForm({ title: mod.title, id: mod.id })
         } else {
+            setModuleForm({ title: '', id: null })
+        }
+        setShowModuleForm(true)
+    }
+
+    const handleSaveModule = async () => {
+        if (!moduleForm.title.trim()) return alert('Título obrigatório')
+        
+        let error
+        if (moduleForm.id) {
+            const { error: err } = await supabase.from('lms_modules').update({ title: moduleForm.title }).eq('id', moduleForm.id)
+            error = err
+        } else {
+            const { error: err } = await supabase.from('lms_modules').insert([{ course_id: selectedCourse.id, title: moduleForm.title, order_index: modules.length }])
+            error = err
+        }
+
+        if (error) alert('Erro ao salvar módulo: ' + error.message)
+        else {
+            setShowModuleForm(false)
             fetchCourseDetails(selectedCourse.id)
         }
     }
 
-    const handleCreateLesson = async (moduleId) => {
-        const title = window.prompt('Título da Aula:')
-        if (!title) return
-
-        const minutes = window.prompt('Tempo estimado p/ esta aula (MINUTOS):', '10')
-        if (minutes === null) return
-        const min_watch_time_sec = (parseInt(minutes) || 0) * 60
-
-        const choice = window.prompt('Qual o tipo de conteúdo?\nDigite 1 para VÍDEO (YouTube/Vimeo)\nDigite 2 para ARQUIVO (PDF)', '1')
-        
-        let video_url = null
-        let pdf_url = null
-
-        if (choice === '1') {
-            video_url = window.prompt('URL do Vídeo (YouTube/Vimeo):')
-            if (!video_url) return
-        } else if (choice === '2') {
-            // Criar input e disparar IMEDIATAMENTE para evitar bloqueio de popup/evento
-            const file = await new Promise(resolve => {
-                const input = document.createElement('input')
-                input.type = 'file'
-                input.accept = '.pdf'
-                input.style.display = 'none'
-                document.body.appendChild(input)
-                
-                input.onchange = (e) => {
-                    const selected = e.target.files[0]
-                    document.body.removeChild(input)
-                    resolve(selected)
-                }
-                
-                // Dispara o clique
-                input.click()
-                
-                // Cleanup se não escolher nada
-                window.addEventListener('focus', () => {
-                    setTimeout(() => {
-                        if (document.body.contains(input)) {
-                            document.body.removeChild(input)
-                            resolve(null)
-                        }
-                    }, 1000)
-                }, { once: true })
+    const handleOpenLessonForm = (moduleId, lesson = null) => {
+        if (lesson) {
+            setLessonForm({
+                id: lesson.id,
+                moduleId: lesson.module_id,
+                title: lesson.title,
+                type: lesson.video_url ? 'video' : 'pdf',
+                video_url: lesson.video_url || '',
+                pdf_url: lesson.pdf_url || '',
+                min_minutes: Math.round((lesson.min_watch_time_sec || 0) / 60)
             })
-            if (!file) return
+        } else {
+            setLessonForm({
+                id: null,
+                moduleId: moduleId,
+                title: '',
+                type: 'video',
+                video_url: '',
+                pdf_url: '',
+                min_minutes: 10
+            })
+        }
+        setShowLessonForm(true)
+    }
 
-            // Upload PDF
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${fileExt}`
-            const filePath = `lessons/${fileName}`
-
-            const { error: uploadError } = await supabase.storage
-                .from('lms-docs')
-                .upload(filePath, file)
-            
-            if (uploadError) return alert('Erro no upload do PDF: ' + uploadError.message)
-
-            const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(filePath)
-            pdf_url = publicUrl
+    const handleSaveLesson = async () => {
+        if (!lessonForm.title.trim()) return alert('Título obrigatório')
+        
+        const data = {
+            module_id: lessonForm.moduleId,
+            title: lessonForm.title,
+            video_url: lessonForm.type === 'video' ? lessonForm.video_url : null,
+            pdf_url: lessonForm.type === 'pdf' ? lessonForm.pdf_url : null,
+            min_watch_time_sec: (parseInt(lessonForm.min_minutes) || 0) * 60,
         }
 
-        const { error } = await supabase
-            .from('lms_lessons')
-            .insert([{ 
-                module_id: moduleId, 
-                title, 
-                video_url: video_url || null, 
-                pdf_url: pdf_url || null,
-                min_watch_time_sec,
-                order_index: (lessons[moduleId]?.length || 0) 
-            }])
-        
-        if (error) {
-            alert('Erro ao criar aula: ' + error.message)
+        if (!lessonForm.id) {
+            data.order_index = (lessons[lessonForm.moduleId]?.length || 0)
+        }
+
+        let error
+        if (lessonForm.id) {
+            const { error: err } = await supabase.from('lms_lessons').update(data).eq('id', lessonForm.id)
+            error = err
         } else {
+            const { error: err } = await supabase.from('lms_lessons').insert([data])
+            error = err
+        }
+
+        if (error) alert('Erro ao salvar aula: ' + error.message)
+        else {
+            setShowLessonForm(false)
             fetchCourseDetails(selectedCourse.id)
         }
     }
 
-    const handleEditModule = async (mod) => {
-        const newTitle = window.prompt('Novo título do módulo:', mod.title)
-        if (!newTitle || newTitle === mod.title) return
-        const { error } = await supabase.from('lms_modules').update({ title: newTitle }).eq('id', mod.id)
-        if (error) alert('Erro ao editar: ' + error.message)
-        else fetchCourseDetails(selectedCourse.id)
-    }
-
-    const handleEditLessonFull = async (lesson) => {
-        const newTitle = window.prompt('Novo título da aula:', lesson.title)
-        if (!newTitle) return
-
-        let video_url = lesson.video_url
-        let pdf_url = lesson.pdf_url
-
-        if (window.confirm('Deseja alterar o conteúdo (Vídeo/PDF)?')) {
-            const type = window.confirm('Novo conteúdo será VÍDEO? (Cancelar para PDF)')
-            if (type) {
-                video_url = window.prompt('URL do Vídeo:', video_url || '')
-                pdf_url = null
-            } else {
-                const file = await new Promise(resolve => {
-                    const input = document.createElement('input')
-                    input.type = 'file'; input.accept = '.pdf'
-                    input.style.display = 'none'; document.body.appendChild(input)
-                    input.onchange = (e) => {
-                        const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
-                    }; 
-                    input.click()
-                    // Cleanup
-                    window.addEventListener('focus', () => {
-                        setTimeout(() => { if (document.body.contains(input)) { document.body.removeChild(input); resolve(null); } }, 1000)
-                    }, { once: true })
-                })
-                if (file) {
-                    const fileName = `${selectedCourse.id}_lesson_${Date.now()}.${file.name.split('.').pop()}`
-                    const { data, error } = await supabase.storage.from('lms-docs').upload(`lessons/${fileName}`, file)
-                    if (!error) {
-                        const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(`lessons/${fileName}`)
-                        pdf_url = publicUrl; video_url = null
-                    }
-                }
-            }
-        }
-
-        const newTime = window.prompt('Tempo mínimo de estudo (EM MINUTOS):', Math.round((lesson.min_watch_time_sec || 0) / 60))
-        
-        const { error } = await supabase
-            .from('lms_lessons')
-            .update({ 
-                title: newTitle,
-                video_url,
-                pdf_url,
-                min_watch_time_sec: (parseInt(newTime) || 0) * 60
-            })
-            .eq('id', lesson.id)
-        
-        if (error) alert('Erro ao editar: ' + error.message)
-        else fetchCourseDetails(selectedCourse.id)
-    }
 
     const handleDeleteModule = async (moduleId, title) => {
         if (!window.confirm(`Excluir módulo "${title}" e TODAS as suas aulas?`)) return
@@ -536,35 +491,41 @@ export default function LMSAdmin() {
         else fetchCourseDetails(selectedCourse.id)
     }
 
-    const handleCreateQuiz = async (moduleId, forcedType = null) => {
-        let quiz_type = forcedType
-        if (!quiz_type) {
-            const typeChoice = window.prompt('O que deseja adicionar?\n1 - Exercício de Módulo (Fixação)\n2 - Prova Final do Curso (Avaliação)', '1')
-            if (!typeChoice) return
-            quiz_type = typeChoice === '2' ? 'final_exam' : 'exercise'
-        }
+    const handleOpenQuizForm = (moduleId, type = 'exercise') => {
+        setQuizForm({
+            id: null,
+            moduleId,
+            title: type === 'exercise' ? 'Exercício de Fixação' : 'Prova Final',
+            type,
+            time_limit: 60,
+            passing_grade: 70
+        })
+        setShowQuizForm(true)
+    }
 
-        const title = window.prompt('Título da Avaliação:', quiz_type === 'exercise' ? 'Exercício de Fixação' : 'Prova Final')
-        if (!title) return
-
-        const minutes = window.prompt('Tempo Limite (em minutos). Digite 0 para sem limite:', '60')
-
+    const handleSaveQuiz = async () => {
+        if (!quizForm.title.trim()) return alert('Título obrigatório')
+        
         const { data, error } = await supabase
             .from('lms_quizzes')
             .insert([{ 
                 course_id: selectedCourse.id, 
-                module_id: moduleId, 
-                title,
-                quiz_type: quiz_type,
-                passing_grade: 70,
+                module_id: quizForm.moduleId, 
+                title: quizForm.title,
+                quiz_type: quizForm.type,
+                passing_grade: quizForm.passing_grade,
                 max_attempts: 3,
-                time_limit_minutes: parseInt(minutes) || 0
+                time_limit_minutes: parseInt(quizForm.time_limit) || 0
             }])
             .select()
             .single()
         
-        if (error) alert('Erro ao criar: ' + error.message)
-        else fetchCourseDetails(selectedCourse.id)
+        if (error) alert('Erro ao salvar: ' + error.message)
+        else {
+            setShowQuizForm(false)
+            fetchCourseDetails(selectedCourse.id)
+            handleManageQuiz(data)
+        }
     }
 
     const handleManageQuiz = async (quiz) => {
@@ -578,30 +539,6 @@ export default function LMSAdmin() {
         if (!error) setQuizQuestions(data || [])
     }
 
-    const handleAddQuestion = async () => {
-        const text = window.prompt('Enunciado da Questão:')
-        if (!text) return
-        
-        const q1 = window.prompt('Opção A:')
-        const q2 = window.prompt('Opção B:')
-        const q3 = window.prompt('Opção C:')
-        const q4 = window.prompt('Opção D:')
-        const correct = window.prompt('Qual é a correta (0 para A, 1 para B, 2 para C, 3 para D)?', '0')
-
-        if (!q1 || !q2) return alert('Pelo menos duas opções são obrigatórias.')
-
-        const { error } = await supabase
-            .from('lms_questions')
-            .insert([{
-                quiz_id: selectedQuiz.id,
-                question_text: text,
-                options: [q1, q2, q3, q4].filter(q => q),
-                correct_option_index: parseInt(correct) || 0
-            }])
-        
-        if (error) alert('Erro ao salvar questão: ' + error.message)
-        else handleManageQuiz(selectedQuiz)
-    }
 
     const handleDeleteQuestion = async (qId) => {
         if (!window.confirm("Excluir esta questão?")) return
@@ -809,7 +746,7 @@ export default function LMSAdmin() {
                                 <h4 style={{ fontWeight: 600 }}>{mod.title}</h4>
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleEditModule(mod)}><Edit size={14} /></button>
+                                <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleOpenModuleForm(mod)}><Edit size={14} /></button>
                                 <button 
                                     className="btn btn-secondary" 
                                     style={{ padding: '0.4rem' ,color: 'var(--danger)'}}
@@ -838,7 +775,7 @@ export default function LMSAdmin() {
                                             size={14} 
                                             className="text-muted" 
                                             style={{ cursor: 'pointer' }} 
-                                            onClick={() => handleEditLessonFull(lesson)}
+                                            onClick={() => handleOpenLessonForm(mod.id, lesson)}
                                         />
                                         <Trash2 
                                             size={14} 
@@ -849,7 +786,7 @@ export default function LMSAdmin() {
                                 </div>
                             ))}
                             <button 
-                                onClick={() => handleCreateLesson(mod.id)}
+                                onClick={() => handleOpenLessonForm(mod.id)}
                                 style={{ width: '100%', padding: '0.75rem', border: '1px dashed #e2e8f0', borderRadius: '6px', color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem', backgroundColor: 'transparent', cursor: 'pointer' }}
                             >
                                 + Adicionar Aula neste Módulo
@@ -879,13 +816,13 @@ export default function LMSAdmin() {
                                 ) : (
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                         <button 
-                                            onClick={() => handleCreateQuiz(mod.id, 'exercise')}
+                                            onClick={() => handleOpenQuizForm(mod.id, 'exercise')}
                                             style={{ flex: 1, padding: '0.75rem', border: '1px dashed #BAE6FD', borderRadius: '6px', color: '#0369A1', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                                         >
                                             <Plus size={16} /> Adicionar Exercício
                                         </button>
                                         <button 
-                                            onClick={() => handleCreateQuiz(mod.id, 'final_exam')}
+                                            onClick={() => handleOpenQuizForm(mod.id, 'final_exam')}
                                             style={{ flex: 1, padding: '0.75rem', border: '1px dashed #9333ea', borderRadius: '6px', color: '#9333ea', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                                         >
                                             <Trophy size={16} /> Adicionar Prova Final
@@ -899,7 +836,7 @@ export default function LMSAdmin() {
                 {modules.length === 0 && (
                     <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
                         <p className="text-secondary">Este curso ainda não tem módulos.</p>
-                        <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={handleCreateModule}><Plus size={16} /> Adicionar Primeiro Módulo</button>
+                        <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => handleOpenModuleForm()}><Plus size={16} /> Adicionar Primeiro Módulo</button>
                     </div>
                 )}
             </div>
@@ -1154,6 +1091,168 @@ export default function LMSAdmin() {
             {view === 'add_course' && renderAddCourse()}
             {view === 'manage_course' && renderManageCourse()}
             {view === 'doubts' && renderDoubts()}
+
+            {/* MODAL DE MÓDULO */}
+            {showModuleForm && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                    <div className="card animate-fade-in" style={{ width: '400px' }}>
+                        <h3 style={{ marginBottom: '1.5rem' }}>{moduleForm.id ? 'Editar Módulo' : 'Novo Módulo'}</h3>
+                        <div className="form-group">
+                            <label className="form-label">Título do Módulo</label>
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                value={moduleForm.title} 
+                                onChange={e => setModuleForm({...moduleForm, title: e.target.value})}
+                                placeholder="Ex: Introdução ao Curso"
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowModuleForm(false)}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleSaveModule}>Salvar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE AULA */}
+            {showLessonForm && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                    <div className="card animate-fade-in" style={{ width: '500px' }}>
+                        <h3 style={{ marginBottom: '1.5rem' }}>{lessonForm.id ? 'Editar Aula' : 'Nova Aula'}</h3>
+                        <div className="form-group">
+                            <label className="form-label">Título da Aula</label>
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                value={lessonForm.title} 
+                                onChange={e => setLessonForm({...lessonForm, title: e.target.value})}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Tipo de Conteúdo</label>
+                            <select 
+                                className="form-control" 
+                                value={lessonForm.type} 
+                                onChange={e => setLessonForm({...lessonForm, type: e.target.value})}
+                            >
+                                <option value="video">Vídeo (YouTube/Vimeo)</option>
+                                <option value="pdf">Arquivo (PDF)</option>
+                            </select>
+                        </div>
+
+                        {lessonForm.type === 'video' ? (
+                            <div className="form-group">
+                                <label className="form-label">URL do Vídeo</label>
+                                <input 
+                                    type="text" 
+                                    className="form-control" 
+                                    value={lessonForm.video_url} 
+                                    onChange={e => setLessonForm({...lessonForm, video_url: e.target.value})}
+                                    placeholder="https://youtube.com/..."
+                                />
+                            </div>
+                        ) : (
+                            <div className="form-group">
+                                <label className="form-label">Arquivo PDF</label>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <input 
+                                        type="text" 
+                                        className="form-control" 
+                                        value={lessonForm.pdf_url} 
+                                        readOnly 
+                                        placeholder="Nenhum arquivo subido"
+                                    />
+                                    <button className="btn btn-secondary" onClick={async () => {
+                                        const input = document.createElement('input')
+                                        input.type = 'file'; input.accept = '.pdf'
+                                        input.onchange = async (e) => {
+                                            const file = e.target.files[0]
+                                            if (file) {
+                                                const fileName = `${selectedCourse.id}_${Date.now()}.${file.name.split('.').pop()}`
+                                                const { error } = await supabase.storage.from('lms-docs').upload(`lessons/${fileName}`, file)
+                                                if (!error) {
+                                                    const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(`lessons/${fileName}`)
+                                                    setLessonForm(prev => ({ ...prev, pdf_url: publicUrl }))
+                                                } else alert('Erro no upload: ' + error.message)
+                                            }
+                                        }
+                                        input.click()
+                                    }}>Subir PDF</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="form-group">
+                            <label className="form-label">Tempo teórico (Minutos)</label>
+                            <input 
+                                type="number" 
+                                className="form-control" 
+                                value={lessonForm.min_minutes} 
+                                onChange={e => setLessonForm({...lessonForm, min_minutes: e.target.value})}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowLessonForm(false)}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleSaveLesson}>Salvar Aula</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE QUIZ / PROVA */}
+            {showQuizForm && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                    <div className="card animate-fade-in" style={{ width: '500px' }}>
+                        <h3 style={{ marginBottom: '1.5rem' }}>{quizForm.type === 'exercise' ? '📝 Novo Exercício' : '🏆 Nova Prova Final'}</h3>
+                        <div className="form-group">
+                            <label className="form-label">Título</label>
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                value={quizForm.title} 
+                                onChange={e => setQuizForm({...quizForm, title: e.target.value})}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div className="form-group">
+                                <label className="form-label">Tempo Limite (Min)</label>
+                                <input 
+                                    type="number" 
+                                    className="form-control" 
+                                    value={quizForm.time_limit} 
+                                    onChange={e => setQuizForm({...quizForm, time_limit: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Média Mínima (%)</label>
+                                <input 
+                                    type="number" 
+                                    className="form-control" 
+                                    value={quizForm.passing_grade} 
+                                    onChange={e => setQuizForm({...quizForm, passing_grade: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '4px', marginTop: '0.5rem' }}>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                                {quizForm.type === 'exercise' 
+                                    ? 'ℹ️ Exercícios liberam o próximo módulo ao serem concluídos.' 
+                                    : 'ℹ️ Provas finais exigem nota mínima para conclusão do curso.'
+                                }
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowQuizForm(false)}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleSaveQuiz}>Criar e Adicionar Questões</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {view === 'certificate_models' && (
                 <div className="animate-fade-in">
                     <button className="btn btn-secondary" style={{ marginBottom: '1.5rem' }} onClick={() => setView('list')}>&larr; Voltar</button>
