@@ -25,6 +25,11 @@ export default function Turmas() {
     })
     const [lmsCourses, setLmsCourses] = useState([])
 
+    // Modal de Data Universal
+    const [showDateModal, setShowDateModal] = useState(false)
+    const [dateModalConfig, setDateModalConfig] = useState({ title: '', initialDate: '', onSave: null, label: '' })
+    const [modalDateValue, setModalDateValue] = useState('')
+
     const fetchLmsCourses = async () => {
         const { data } = await supabase.from('lms_courses').select('id, title').eq('is_published', true)
         if (data) setLmsCourses(data)
@@ -55,7 +60,7 @@ export default function Turmas() {
                 .from('course_prices')
                 .select('default_value')
                 .eq('course_name', formData.course_name)
-                .single()
+                .maybeSingle()
             
             if (data) {
                 setFormData(prev => ({ ...prev, course_value: data.default_value }))
@@ -234,49 +239,49 @@ export default function Turmas() {
         setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '', course_value: '' })
     }
 
-    const handleStartClass = async (classId, className) => {
-        const confirmedDate = window.prompt(`Registrar Data Real de Início para a Turma: ${className}\n\nDeixe em branco para usar a data de hoje ou preencha no formato YYYY-MM-DD:`, new Date().toISOString().split('T')[0])
-
-        if (confirmedDate !== null) {
-            const dateToSave = confirmedDate || new Date().toISOString().split('T')[0]
-            const { error } = await supabase.from('classes').update({ actual_start_date: dateToSave }).eq('id', classId)
-
-            if (error) {
-                alert('Erro ao iniciar turma: ' + error.message)
-            } else {
-                alert('Marcada como Em Andamento com sucesso!')
-                fetchClasses()
+    const handleStartClass = (classId, className) => {
+        setDateModalConfig({
+            title: `Iniciar Turma: ${className}`,
+            label: 'Data Real de Início',
+            initialDate: new Date().toISOString().split('T')[0],
+            onSave: async (dateToSave) => {
+                const { error } = await supabase.from('classes').update({ actual_start_date: dateToSave }).eq('id', classId)
+                if (error) alert('Erro ao iniciar turma: ' + error.message)
+                else { alert('Marcada como Em Andamento!'); fetchClasses(); }
             }
-        }
+        })
+        setModalDateValue(new Date().toISOString().split('T')[0])
+        setShowDateModal(true)
     }
 
-    const handleDelayClass = async (classId, className) => {
-        const nextDate = window.prompt(`A Turma ${className} atrasou?\n\nInforme a NOVA DATA PREVISTA para início (YYYY-MM-DD):`, new Date().toISOString().split('T')[0])
-        if (nextDate) {
-            const { error } = await supabase.from('classes').update({ start_date: nextDate }).eq('id', classId)
-            if (error) {
-                alert('Erro ao atualizar previsão: ' + error.message)
-            } else {
-                alert('Previsão de início atualizada com sucesso!')
-                fetchClasses()
+    const handleDelayClass = (classId, className) => {
+        setDateModalConfig({
+            title: `Atrasar Turma: ${className}`,
+            label: 'Nova Data Prevista para Início',
+            initialDate: new Date().toISOString().split('T')[0],
+            onSave: async (nextDate) => {
+                const { error } = await supabase.from('classes').update({ start_date: nextDate }).eq('id', classId)
+                if (error) alert('Erro ao atualizar: ' + error.message)
+                else { alert('Previsão atualizada!'); fetchClasses(); }
             }
-        }
+        })
+        setModalDateValue(new Date().toISOString().split('T')[0])
+        setShowDateModal(true)
     }
 
-    const handleEndClass = async (classId, className) => {
-        const confirmedDate = window.prompt(`Registrar Data Real de TÉRMINO para a Turma: ${className}\n\nIsso fechará a turma definitivamente. Deixe em branco para usar a data de hoje ou preencha (YYYY-MM-DD):`, new Date().toISOString().split('T')[0])
-
-        if (confirmedDate !== null) {
-            const dateToSave = confirmedDate || new Date().toISOString().split('T')[0]
-            const { error } = await supabase.from('classes').update({ actual_end_date: dateToSave }).eq('id', classId)
-
-            if (error) {
-                alert('Erro ao encerrar turma: ' + error.message)
-            } else {
-                alert('Turma finalizada e arquivada com sucesso!')
-                fetchClasses()
+    const handleEndClass = (classId, className) => {
+        setDateModalConfig({
+            title: `Encerrar Turma: ${className}`,
+            label: 'Data Real de Término',
+            initialDate: new Date().toISOString().split('T')[0],
+            onSave: async (dateToSave) => {
+                const { error } = await supabase.from('classes').update({ actual_end_date: dateToSave }).eq('id', classId)
+                if (error) alert('Erro ao encerrar turma: ' + error.message)
+                else { alert('Turma finalizada e arquivada!'); fetchClasses(); }
             }
-        }
+        })
+        setModalDateValue(new Date().toISOString().split('T')[0])
+        setShowDateModal(true)
     }
 
     const toggleStudentEad = async (studentId, currentStatus) => {
@@ -619,6 +624,31 @@ export default function Turmas() {
         <div className="turmas-container">
             {view === 'list' && renderList()}
             {view === 'add' && renderAddForm()}
+
+            {/* MODAL DE DATA UNIVERSAL */}
+            {showDateModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+                    <div className="card animate-fade-in" style={{ maxWidth: '400px', width: '100%', margin: 'auto' }}>
+                        <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>{dateModalConfig.title}</h3>
+                        <div className="form-group">
+                            <label className="form-label">{dateModalConfig.label}</label>
+                            <input 
+                                type="date" 
+                                className="form-control" 
+                                value={modalDateValue}
+                                onChange={e => setModalDateValue(e.target.value)}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowDateModal(false)}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={() => {
+                                dateModalConfig.onSave(modalDateValue)
+                                setShowDateModal(false)
+                            }}>Confirmar Data</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

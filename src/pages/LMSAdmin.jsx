@@ -72,6 +72,9 @@ export default function LMSAdmin() {
         passing_grade: 70
     })
 
+    const [showPriceForm, setShowPriceForm] = useState(false)
+    const [priceForm, setPriceForm] = useState({ id: null, course_name: '', default_value: 0 })
+
     const fetchCourses = async () => {
         setLoading(true)
         const { data, error } = await supabase
@@ -113,7 +116,7 @@ export default function LMSAdmin() {
                     .from('lms_quizzes')
                     .select('*')
                     .eq('module_id', mod.id)
-                    .single()
+                    .maybeSingle()
                 
                 if (!qzError && qz) quizzesData[mod.id] = qz
             }
@@ -154,6 +157,34 @@ export default function LMSAdmin() {
             setAnsweringDoubtId(null)
             fetchAllDoubts()
             alert('Resposta enviada!')
+        }
+    }
+
+    const handleOpenPriceForm = (price = null) => {
+        if (price) {
+            setPriceForm({ id: price.id, course_name: price.course_name, default_value: price.default_value })
+        } else {
+            setPriceForm({ id: null, course_name: '', default_value: 0 })
+        }
+        setShowPriceForm(true)
+    }
+
+    const handleSavePrice = async () => {
+        if (!priceForm.course_name.trim()) return alert('Nome do curso obrigatório')
+        
+        let error
+        if (priceForm.id) {
+            const { error: err } = await supabase.from('course_prices').update({ course_name: priceForm.course_name, default_value: parseFloat(priceForm.default_value) }).eq('id', priceForm.id)
+            error = err
+        } else {
+            const { error: err } = await supabase.from('course_prices').insert([{ course_name: priceForm.course_name, default_value: parseFloat(priceForm.default_value) }])
+            error = err
+        }
+
+        if (error) alert('Erro ao salvar preço: ' + error.message)
+        else {
+            setShowPriceForm(false)
+            fetchPrices()
         }
     }
 
@@ -229,7 +260,10 @@ export default function LMSAdmin() {
                     <button className="btn btn-secondary" onClick={() => setPricingView(!pricingView)}>
                         {pricingView ? 'Ver Cursos' : 'Gerenciar Preços'}
                     </button>
-                    <button className="btn btn-primary" onClick={() => setView('add_course')}>
+                    <button className="btn btn-primary" onClick={() => {
+                        setSelectedCourse(null)
+                        setView('add_course')
+                    }}>
                         <Plus size={16} /> Novo Curso
                     </button>
                 </div>
@@ -255,27 +289,18 @@ export default function LMSAdmin() {
                                         <td style={{ padding: '0.75rem' }}>{p.course_name}</td>
                                         <td style={{ padding: '0.75rem' }}>R$ {p.default_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                         <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                                            <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={async () => {
-                                                const newVal = window.prompt(`Novo valor para ${p.course_name}:`, p.default_value)
-                                                if (newVal) {
-                                                    await supabase.from('course_prices').update({ default_value: parseFloat(newVal) }).eq('id', p.id)
-                                                    fetchPrices()
-                                                }
-                                            }}><Edit size={14} /></button>
+                                            <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleOpenPriceForm(p)}>
+                                                <Edit size={14} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                    <button className="btn btn-primary" style={{ marginTop: '1.5rem' }} onClick={async () => {
-                        const name = window.prompt('Nome do Curso para Preço:')
-                        const val = window.prompt('Valor Sugerido:')
-                        if (name && val) {
-                            await supabase.from('course_prices').insert([{ course_name: name, default_value: parseFloat(val) }])
-                            fetchPrices()
-                        }
-                    }}>+ Adicionar Novo Preço</button>
+                    <button className="btn btn-primary" style={{ marginTop: '1.5rem' }} onClick={() => handleOpenPriceForm()}>
+                        + Adicionar Novo Preço
+                    </button>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
@@ -518,7 +543,7 @@ export default function LMSAdmin() {
                 time_limit_minutes: parseInt(quizForm.time_limit) || 0
             }])
             .select()
-            .single()
+            .maybeSingle()
         
         if (error) alert('Erro ao salvar: ' + error.message)
         else {
@@ -684,7 +709,7 @@ export default function LMSAdmin() {
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button className="btn btn-secondary" onClick={handlePreviewCourse}><ChevronRight size={16} /> Ver como Aluno</button>
-                    <button className="btn btn-primary" onClick={handleCreateModule}><Plus size={16} /> Novo Módulo</button>
+                    <button className="btn btn-primary" onClick={() => handleOpenModuleForm()}><Plus size={16} /> Novo Módulo</button>
                 </div>
             </div>
 
@@ -1280,6 +1305,38 @@ export default function LMSAdmin() {
                                 </p>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE PREÇO */}
+            {showPriceForm && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem' }}>
+                    <div className="card animate-fade-in" style={{ maxWidth: '400px', width: '100%', margin: 'auto' }}>
+                        <h3 style={{ marginBottom: '1.5rem' }}>{priceForm.id ? 'Editar Preço' : 'Novo Preço Sugerido'}</h3>
+                        <div className="form-group">
+                            <label className="form-label">Nome do Curso</label>
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                value={priceForm.course_name}
+                                onChange={e => setPriceForm({...priceForm, course_name: e.target.value})}
+                                placeholder="Ex: NR-10 Básico"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Valor Padrão (R$)</label>
+                            <input 
+                                type="number" 
+                                className="form-control" 
+                                value={priceForm.default_value}
+                                onChange={e => setPriceForm({...priceForm, default_value: e.target.value})}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowPriceForm(false)}>Cancelar</button>
+                            <button className="btn btn-primary" onClick={handleSavePrice}>Salvar Preço</button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -20,7 +20,7 @@ export default function AreaAluno() {
             .select('id')
             .order('order_index', { ascending: true })
             .limit(1)
-            .single()
+            .maybeSingle()
         
         if (lesson) {
             navigate(`/curso/${courseId}/aula/${lesson.id}`)
@@ -38,7 +38,7 @@ export default function AreaAluno() {
             .from('users')
             .select('full_name')
             .eq('id', session.user.id)
-            .single()
+            .maybeSingle()
 
         if (!profile) {
             setLoading(false)

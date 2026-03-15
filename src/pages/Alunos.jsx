@@ -270,7 +270,7 @@ export default function Alunos() {
         try {
             const { data: qzResults } = await supabase
                 .from('lms_quiz_results')
-                .select('*')
+                .select('score')
                 .eq('student_id', student.id)
             
             const eadAvg = qzResults?.length > 0 
@@ -322,7 +322,11 @@ export default function Alunos() {
         <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Alunos</h2>
-                <button className="btn btn-primary" onClick={() => { resetForm(); setView('add'); }}>
+                <button className="btn btn-primary" onClick={() => { 
+                    resetForm(); 
+                    setIsEditing(null);
+                    setView('add'); 
+                }}>
                     <Plus size={20} /> Nova Matrícula
                 </button>
             </div>

@@ -68,7 +68,7 @@ export default function ConfigDocs() {
             try {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (user) {
-                    const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).single()
+                    const { data: profile } = await supabase.from('users').select('role, permissions').eq('id', user.id).maybeSingle()
                     const email = user.email?.toLowerCase() || ''
                     const metadata = user.user_metadata || {}
                     const isDev = email.includes('desenvolvedor') || email.includes('carlos') || email.includes('piticalym') || metadata.role === 'admin'

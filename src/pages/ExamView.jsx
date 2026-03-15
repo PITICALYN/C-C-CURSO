@@ -51,7 +51,7 @@ export default function ExamView() {
                 .select('*')
                 .eq('quiz_id', quizId)
                 .eq('student_id', session.user.id)
-                .single()
+                .maybeSingle()
             
             if (results) {
                 setAttemptsCount(results.attempts_count)

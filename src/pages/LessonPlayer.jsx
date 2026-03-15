@@ -48,7 +48,7 @@ export default function LessonPlayer() {
             .from('lms_lessons')
             .select('*, lms_modules(title, course_id, lms_courses(title))')
             .eq('id', lessonId)
-            .single()
+            .maybeSingle()
         
         if (lessonData) {
             setLesson(lessonData)

@@ -41,7 +41,7 @@ export default function Dashboard() {
             if (user) {
                 const email = user.email?.toLowerCase() || ''
                 const metadataRole = user.user_metadata?.role
-                const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+                const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
                 
                 let effectiveRole = profile?.role || metadataRole
 
@@ -154,6 +154,7 @@ export default function Dashboard() {
 
             // Calculate Approximate Total Revenue from Students
             const totalRevenue = (studentsData?.length || 0) * 1500 // Ex: 1500 per student avg
+            const totalCosts = activePayables.reduce((acc, curr) => acc + (curr.amount || 0), 0)
 
             setMetrics({
                 pendingPix: 2, // Mock notification

@@ -33,6 +33,7 @@ function App() {
             </PrivateRoute>
           }>
             <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="alunos" element={<Alunos />} />
             <Route path="turmas" element={<Turmas />} />
             <Route path="financeiro" element={<Financeiro />} />
