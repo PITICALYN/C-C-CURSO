@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Plus, Book, Video, FileText, ChevronRight, ChevronDown, Save, Trash2, Edit, CheckSquare, Clock, Trophy, Eye, Printer, Search, Award } from 'lucide-react'
@@ -21,6 +21,23 @@ export default function LMSAdmin() {
     const [answeringDoubtId, setAnsweringDoubtId] = useState(null)
     const [doubtAnswerText, setDoubtAnswerText] = useState('')
     const [certConfigs, setCertConfigs] = useState([])
+    
+    // Estados do NOVO QUESTION BUILDER
+    const [showQuestionBuilder, setShowQuestionBuilder] = useState(false)
+    const [questionForm, setQuestionForm] = useState({
+        text: '',
+        image_url: null,
+        options: [
+            { text: '', image_url: null },
+            { text: '', image_url: null }
+        ],
+        correctIndex: 0
+    })
+    const [isSavingQuestion, setIsSavingQuestion] = useState(false)
+
+    // Refs para inputs de arquivo
+    const questionImageRef = useRef(null)
+    const optionImageRefs = useRef([])
 
     const [courseForm, setCourseForm] = useState({
         title: '',
@@ -614,79 +631,69 @@ export default function LMSAdmin() {
         return publicUrl
     }
 
-    const handleAddFullQuestion = async () => {
-        const text = window.prompt('Enunciado da Questão:')
-        if (!text) return
-        
-        let image_url = null
-        if (window.confirm("Deseja anexar uma imagem à PERGUNTA?")) {
-            const file = await new Promise(resolve => {
-                const input = document.createElement('input')
-                input.type = 'file'
-                input.accept = 'image/*'
-                input.style.display = 'none'; document.body.appendChild(input)
-                input.onchange = (e) => {
-                    const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
-                }
-                input.click()
-                setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
-            })
-            if (file) {
-                image_url = await handleQuizImageUpload(file, 'questions/')
-            }
-        }
-        
-        continueWithQuestion(text, image_url)
+    const handleOpenQuestionBuilder = () => {
+        setQuestionForm({
+            text: '',
+            image_url: null,
+            options: [
+                { text: '', image_url: null },
+                { text: '', image_url: null },
+                { text: '', image_url: null },
+                { text: '', image_url: null }
+            ],
+            correctIndex: 0
+        })
+        setShowQuestionBuilder(true)
     }
 
-    const continueWithQuestion = async (text, qImage) => {
-        const options = []
-        for (let i = 0; i < 5; i++) {
-            const letter = String.fromCharCode(65+i)
-            let optText = window.prompt(`Texto da Opção ${letter} (Deixe VAZIO se for usar APENAS IMAGEM ou para encerrar):`)
-            
-            let optImage = null
-            if (window.confirm(`Deseja anexar uma imagem à OPÇÃO ${letter}?`)) {
-                const file = await new Promise(resolve => {
-                    const input = document.createElement('input')
-                    input.type = 'file'; input.accept = 'image/*'
-                    input.style.display = 'none'; document.body.appendChild(input)
-                    input.onchange = (e) => {
-                        const s = e.target.files[0]; document.body.removeChild(input); resolve(s);
-                    }
-                    input.click()
-                    setTimeout(() => { if (document.body.contains(input)) document.body.removeChild(input); resolve(null); }, 60000)
-                })
-                if (file) {
-                    optImage = await handleQuizImageUpload(file, 'options/')
-                }
-            }
-
-            // Se não tem texto E não tem imagem, e já temos pelo menos 2 opções, encerramos aqui.
-            if (!optText && !optImage) {
-                if (i >= 2) break;
-                // Se é A ou B e não tem nada, a gente avisa.
-                alert(`A opção ${letter} precisa de pelo menos Texto ou Imagem.`)
-                return;
-            }
-
-            options.push({ text: optText || "", image_url: optImage })
+    const handleSaveFullQuestion = async () => {
+        if (!questionForm.text.trim() && !questionForm.image_url) {
+            alert('A pergunta precisa de texto ou imagem.')
+            return
+        }
+        
+        // Validar pelo menos 2 opções
+        const validOptions = questionForm.options.filter(o => o.text.trim() || o.image_url)
+        if (validOptions.length < 2) {
+            alert('A questão precisa de pelo menos 2 alternativas preenchidas.')
+            return
         }
 
-        const correct = window.prompt(`Qual é a correta (0 para A, 1 para B, 2 para C, 3 para D, 4 para E)?`, '0')
-
+        setIsSavingQuestion(true)
         const { error } = await supabase
             .from('lms_questions')
             .insert([{
                 quiz_id: selectedQuiz.id,
-                question_text: text,
-                image_url: qImage,
-                options: options,
-                correct_option_index: parseInt(correct) || 0
+                question_text: questionForm.text,
+                image_url: questionForm.image_url,
+                options: questionForm.options.filter(o => o.text.trim() || o.image_url),
+                correct_option_index: questionForm.correctIndex
             }])
         
+        setIsSavingQuestion(false)
         if (error) alert('Erro ao salvar questão: ' + error.message)
-        else handleManageQuiz(selectedQuiz)
+        else {
+            setShowQuestionBuilder(false)
+            handleManageQuiz(selectedQuiz)
+        }
+    }
+
+    const handleFileChange = async (e, type, index = null) => {
+        const file = e.target.files[0]
+        if (!file) return
+
+        const path = type === 'question' ? 'questions/' : 'options/'
+        const url = await handleQuizImageUpload(file, path)
+        
+        if (url) {
+            if (type === 'question') {
+                setQuestionForm(prev => ({ ...prev, image_url: url }))
+            } else {
+                const newOptions = [...questionForm.options]
+                newOptions[index].image_url = url
+                setQuestionForm(prev => ({ ...prev, options: newOptions }))
+            }
+        }
     }
 
     const handleTogglePublishCourse = async (courseId, currentStatus) => {
@@ -962,9 +969,133 @@ export default function LMSAdmin() {
                             ))}
                             {quizQuestions.length === 0 && <p className="text-center text-muted">Nenhuma questão cadastrada.</p>}
                             
-                            <button className="btn btn-primary" style={{ marginTop: '1rem', justifyContent: 'center', padding: '1rem' }} onClick={handleAddFullQuestion}>
-                                + Adicionar Questão com Imagem/Texto
-                            </button>
+                            {showQuestionBuilder ? (
+                                <div className="card animate-fade-in" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc', border: '2px solid var(--primary-alpha)' }}>
+                                    <h4 style={{ fontWeight: 700, marginBottom: '1.5rem', color: 'var(--primary)' }}>Construtor de Questão</h4>
+                                    
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label className="form-label" style={{ fontWeight: 600 }}>Enunciado da Questão</label>
+                                        <textarea 
+                                            className="form-control" 
+                                            rows="3" 
+                                            value={questionForm.text}
+                                            onChange={e => setQuestionForm(prev => ({...prev, text: e.target.value}))}
+                                            placeholder="Escreva a pergunta aqui..."
+                                        ></textarea>
+                                        
+                                        <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <button 
+                                                className="btn btn-secondary" 
+                                                style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                                                onClick={() => questionImageRef.current.click()}
+                                            >
+                                                <UploadCloud size={14} /> {questionForm.image_url ? 'Alterar Imagem' : 'Anexar Imagem'}
+                                            </button>
+                                            <input type="file" ref={questionImageRef} hidden accept="image/*" onChange={e => handleFileChange(e, 'question')} />
+                                            {questionForm.image_url && (
+                                                <div style={{ position: 'relative' }}>
+                                                    <img src={questionForm.image_url} alt="Questão" style={{ height: '40px', borderRadius: '4px' }} />
+                                                    <button 
+                                                        onClick={() => setQuestionForm(prev => ({...prev, image_url: null}))}
+                                                        style={{ position: 'absolute', top: -5, right: -5, backgroundColor: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                    >×</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <label className="form-label" style={{ fontWeight: 600 }}>Alternativas (Mínimo 2)</label>
+                                        {questionForm.options.map((opt, oidx) => (
+                                            <div key={oidx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', paddingTop: '0.5rem' }}>
+                                                    <input 
+                                                        type="radio" 
+                                                        name="correct_choice" 
+                                                        checked={questionForm.correctIndex === oidx}
+                                                        onChange={() => setQuestionForm(prev => ({...prev, correctIndex: oidx}))}
+                                                        title="Marcar como CORRETA"
+                                                    />
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{String.fromCharCode(65+oidx)}</span>
+                                                </div>
+                                                
+                                                <div style={{ flex: 1 }}>
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control" 
+                                                        value={opt.text}
+                                                        onChange={e => {
+                                                            const newOpt = [...questionForm.options]
+                                                            newOpt[oidx].text = e.target.value
+                                                            setQuestionForm(prev => ({...prev, options: newOpt}))
+                                                        }}
+                                                        placeholder={`Texto da opção ${String.fromCharCode(65+oidx)}`}
+                                                    />
+                                                    <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <button 
+                                                            style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}
+                                                            className="btn btn-secondary"
+                                                            onClick={() => optionImageRefs.current[oidx].click()}
+                                                        >
+                                                            {opt.image_url ? 'Trocar Imagem' : '+ Imagem'}
+                                                        </button>
+                                                        <input type="file" ref={el => optionImageRefs.current[oidx] = el} hidden accept="image/*" onChange={e => handleFileChange(e, 'option', oidx)} />
+                                                        {opt.image_url && (
+                                                            <div style={{ position: 'relative' }}>
+                                                                <img src={opt.image_url} alt="Opção" style={{ height: '30px', borderRadius: '4px' }} />
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const newOpt = [...questionForm.options]
+                                                                        newOpt[oidx].image_url = null
+                                                                        setQuestionForm(prev => ({...prev, options: newOpt}))
+                                                                    }}
+                                                                    style={{ position: 'absolute', top: -4, right: -4, backgroundColor: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '12px', height: '12px', fontSize: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                                >×</button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {questionForm.options.length > 2 && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            const newOpt = questionForm.options.filter((_, i) => i !== oidx)
+                                                            setQuestionForm(prev => ({...prev, options: newOpt}))
+                                                        }}
+                                                        style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem 0' }}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        
+                                        {questionForm.options.length < 5 && (
+                                            <button 
+                                                className="btn btn-secondary" 
+                                                style={{ alignSelf: 'flex-start', fontSize: '0.8rem' }}
+                                                onClick={() => setQuestionForm(prev => ({...prev, options: [...prev.options, { text: '', image_url: null }]}))}
+                                            >
+                                                + Adicionar Alternativa
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+                                        <button className="btn btn-secondary" onClick={() => setShowQuestionBuilder(false)}>Cancelar</button>
+                                        <button className="btn btn-primary" onClick={handleSaveFullQuestion} disabled={isSavingQuestion}>
+                                            {isSavingQuestion ? 'Salvando...' : 'Salvar Questão'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button 
+                                    className="btn btn-primary" 
+                                    style={{ marginTop: '1rem', justifyContent: 'center', padding: '1rem' }} 
+                                    onClick={handleOpenQuestionBuilder}
+                                >
+                                    + Adicionar Questão com Imagem/Texto
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
