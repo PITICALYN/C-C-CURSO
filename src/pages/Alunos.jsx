@@ -305,10 +305,8 @@ export default function Alunos() {
                 .replace('{{curso}}', student.class)
                 .replace('{{nota}}', isApproved ? ((eadAvg + teorica + pratica) / 3).toFixed(1) : '')
             
-            generateDocument({
-                title: isApproved ? 'Certificado de Conclusão' : 'Certificado de Participação',
-                content: text,
-                studentName: student.name
+            generateDocument('custom_certificate', student, {
+                content: text
             })
 
             alert(`Certificado de ${isApproved ? 'Conclusão' : 'Participação'} gerado com sucesso!`)

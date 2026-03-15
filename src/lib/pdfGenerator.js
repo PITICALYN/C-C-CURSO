@@ -2,7 +2,7 @@
 import jsPDF from 'jspdf'
 import { supabase } from './supabase'
 
-export const generateDocument = async (type, student) => {
+export const generateDocument = async (type, student, options = {}) => {
     const doc = new jsPDF()
 
     // Buscar Plano de Fundo (Papel Timbrado) correspondente
@@ -24,11 +24,13 @@ export const generateDocument = async (type, student) => {
     } else if (type === 'matricula') {
         generateMatriculaPDF(doc, student, bgImage)
     } else if (type === 'certificado') {
-        generateCertificatePDF(doc, student, bgImage) // O certificado já tem lógica própria mas vamos manter o padrão
+        generateCertificatePDF(doc, student, bgImage)
+    } else if (type === 'custom_certificate') {
+        generateCustomCertificatePDF(doc, student, options.content, bgImage)
     } else if (type === 'melhorias') {
         generateImprovementPDF(doc, student, bgImage)
     } else if (type === 'relatorio_turma') {
-        generateClassReportPDF(doc, student) // Relatório de turma costuma ser papel simples
+        generateClassReportPDF(doc, student)
     }
 
     // Se for relatório de turma, o nome tem outro formato
@@ -37,6 +39,35 @@ export const generateDocument = async (type, student) => {
     } else {
         doc.save(`${type}_${student.name.replace(/\s+/g, '_')}.pdf`)
     }
+}
+
+function generateCustomCertificatePDF(doc, student, content, bgImage) {
+    doc.addPage("a4", "landscape")
+    doc.setPage(2)
+
+    if (bgImage) {
+        doc.addImage(bgImage, 'JPEG', 0, 0, 297, 210)
+    } else {
+        doc.setFillColor(250, 252, 255)
+        doc.rect(0, 0, 297, 210, 'F')
+        doc.setDrawColor(30, 64, 175)
+        doc.setLineWidth(3)
+        doc.rect(10, 10, 277, 190)
+    }
+
+    doc.setFontSize(30)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CERTIFICADO', 148, 50, { align: 'center' })
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'normal')
+    
+    const lines = doc.splitTextToSize(content, 220)
+    doc.text(lines, 148, 80, { align: 'center' })
+
+    doc.setFontSize(12)
+    doc.text('_________________________________', 148, 170, { align: 'center' })
+    doc.text('Diretoria e Coordenação C&C', 148, 178, { align: 'center' })
 }
 
 function generateContractPDF(doc, student) {
