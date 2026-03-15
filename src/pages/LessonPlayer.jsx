@@ -17,6 +17,8 @@ export default function LessonPlayer() {
     const [lessonStatus, setLessonStatus] = useState({}) // { lessonId: { is_completed, watched_seconds } }
     const [quizStatus, setQuizStatus] = useState({}) // { quizId: { is_approved, score } }
     const [courseQuizzes, setCourseQuizzes] = useState([])
+    const [lessonQuestions, setLessonQuestions] = useState([])
+    const [newQuestion, setNewQuestion] = useState('')
     const [loading, setLoading] = useState(true)
     
     const timerRef = useRef(null)
@@ -94,8 +96,8 @@ export default function LessonPlayer() {
             setLessonStatus(statusMap)
 
             if (statusMap[lessonId]) {
-                setSecondsWatched(statusMap[lessonId].watched_seconds || 0)
-                setIsCompleted(statusMap[lessonId].is_completed || false)
+                setSecondsWatched(statusMap[lessonId]?.watched_seconds || 0)
+                setIsCompleted(statusMap[lessonId]?.is_completed || false)
             }
 
             fetchQuestions()
