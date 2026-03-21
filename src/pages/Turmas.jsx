@@ -150,8 +150,21 @@ export default function Turmas() {
         fetchLmsCourses()
     }, [session])
 
+    const courseDurations = {
+        'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)': '136',
+        'Controle Dimensional – Topografia (CD-TO)': '121',
+        'Controle Dimensional - Mecânica- (CD-CM)': '146',
+        'TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)': '136',
+        'Treinamento Dimensional – Topografia (CD-TO)': '121',
+        'Treinamento Dimensional - Mecânica- (CD-CM)': '146'
+    }
+
     const handleFormChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value })
+        const updated = { ...formData, [e.target.name]: e.target.value }
+        if (e.target.name === 'course_name' && courseDurations[e.target.value]) {
+            updated.duration = courseDurations[e.target.value]
+        }
+        setFormData(updated)
     }
 
     const handleSubmit = async () => {
