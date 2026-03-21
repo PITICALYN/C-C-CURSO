@@ -150,21 +150,20 @@ export default function Turmas() {
         fetchLmsCourses()
     }, [session])
 
-    const courseDurations = {
-        'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)': '136',
-        'Controle Dimensional – Topografia (CD-TO)': '121',
-        'Controle Dimensional - Mecânica- (CD-CM)': '146',
-        'TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)': '136',
-        'Treinamento Dimensional – Topografia (CD-TO)': '121',
-        'Treinamento Dimensional - Mecânica- (CD-CM)': '146'
-    }
+    // Sincronização automática de Carga Horária por Sigla (Motor Fase 17)
+    useEffect(() => {
+        const course_name = formData.course_name || '';
+        if (course_name.includes('(CD-CL)')) {
+            setFormData(prev => ({ ...prev, duration: '136' }));
+        } else if (course_name.includes('(CD-TO)')) {
+            setFormData(prev => ({ ...prev, duration: '121' }));
+        } else if (course_name.includes('(CD-CM)')) {
+            setFormData(prev => ({ ...prev, duration: '146' }));
+        }
+    }, [formData.course_name]);
 
     const handleFormChange = (e) => {
-        const updated = { ...formData, [e.target.name]: e.target.value }
-        if (e.target.name === 'course_name' && courseDurations[e.target.value]) {
-            updated.duration = courseDurations[e.target.value]
-        }
-        setFormData(updated)
+        setFormData({ ...formData, [e.target.name]: e.target.value })
     }
 
     const handleSubmit = async () => {
