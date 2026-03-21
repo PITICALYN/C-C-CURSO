@@ -250,7 +250,7 @@ export default function LessonPlayer() {
                             <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', color: '#fbbf24' }}>
                                 <Clock size={20} className="animate-spin" />
                                 <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                                    Aguarde mais {lesson.min_watch_time_sec - secondsWatched} segundos para prosseguir.
+                                    Aguarde mais {Math.max(0, lesson.min_watch_time_sec - secondsWatched)} segundos para prosseguir.
                                 </span>
                             </div>
                         ) : (
