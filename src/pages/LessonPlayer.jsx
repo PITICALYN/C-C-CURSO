@@ -246,29 +246,20 @@ export default function LessonPlayer() {
 
                     {/* BOTÃO DE PRÓXIMA AULA */}
                     <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
-                        {!isCompleted ? (
-                            <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '1rem', color: '#fbbf24' }}>
-                                <Clock size={20} className="animate-spin" />
-                                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                                    Aguarde mais {Math.max(0, lesson.min_watch_time_sec - secondsWatched)} segundos para prosseguir.
-                                </span>
-                            </div>
-                        ) : (
-                            <button 
-                                onClick={() => {
-                                    const currentIndex = allLessons.findIndex(l => l.id === lessonId)
-                                    if (currentIndex < allLessons.length - 1) {
-                                        navigate(`/curso/${courseId}/aula/${allLessons[currentIndex+1].id}`)
-                                    } else {
-                                        alert('Parabéns! Você concluiu todas as lições deste curso.')
-                                    }
-                                }}
-                                className="btn btn-primary"
-                                style={{ padding: '0.75rem 2rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                            >
-                                Próxima Aula <ChevronRight size={18} />
-                            </button>
-                        )}
+                        <button 
+                            onClick={() => {
+                                const currentIndex = allLessons.findIndex(l => l.id === lessonId)
+                                if (currentIndex < allLessons.length - 1) {
+                                    navigate(`/curso/${courseId}/aula/${allLessons[currentIndex+1].id}`)
+                                } else {
+                                    alert('Parabéns! Você concluiu todas as lições deste curso.')
+                                }
+                            }}
+                            className="btn btn-primary"
+                            style={{ padding: '0.75rem 2rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                            Próxima Aula <ChevronRight size={18} />
+                        </button>
                     </div>
 
                     <div style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid #334155' }}>
