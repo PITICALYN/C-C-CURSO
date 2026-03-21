@@ -112,13 +112,16 @@ export default function LMSAdmin() {
             // Buscar quizzes para cada módulo
             const quizzesData = {}
             for (const mod of mods) {
-                const { data: qz, error: qzError } = await supabase
+                const { data: qzs, error: qzError } = await supabase
                     .from('lms_quizzes')
                     .select('*')
                     .eq('module_id', mod.id)
-                    .maybeSingle()
                 
-                if (!qzError && qz) quizzesData[mod.id] = qz
+                if (!qzError && qzs) {
+                    qzs.forEach(qz => {
+                        quizzesData[`${mod.id}_${qz.quiz_type}`] = qz
+                    })
+                }
             }
             setQuizzes(quizzesData)
         }
@@ -816,43 +819,58 @@ export default function LMSAdmin() {
                             >
                                 + Adicionar Aula neste Módulo
                             </button>
-                            
                             {/* Seção de Quiz por Módulo */}
-                            <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-                                {quizzes[mod.id] ? (
+                            <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {/* EXERCÍCIO */}
+                                {quizzes[`${mod.id}_exercise`] ? (
                                     <div style={{ padding: '0.75rem', backgroundColor: '#F0F9FF', borderRadius: '6px', border: '1px solid #BAE6FD', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: quizzes[mod.id].quiz_type === 'final_exam' ? '#9333ea' : '#0369A1' }}>
-                                                {quizzes[mod.id].quiz_type === 'final_exam' ? <Trophy size={16} /> : <CheckSquare size={16} />}
-                                                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                                                    {quizzes[mod.id].quiz_type === 'final_exam' ? '🏆 PROVA FINAL: ' : '📝 EXERCÍCIO: '} 
-                                                    {quizzes[mod.id].title}
-                                                </span>
-                                            </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#0369A1' }}>
+                                            <CheckSquare size={16} />
+                                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>📝 EXERCÍCIO: {quizzes[`${mod.id}_exercise`].title}</span>
+                                        </div>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', backgroundColor: '#fff' }} onClick={() => handleManageQuiz(quizzes[mod.id])}>Gerenciar Questões</button>
+                                            <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', backgroundColor: '#fff' }} onClick={() => handleManageQuiz(quizzes[`${mod.id}_exercise`])}>Gerenciar Questões</button>
                                             <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', color: 'var(--danger)' }} onClick={async () => {
-                                                if (window.confirm("Excluir esta prova?")) {
-                                                    await supabase.from('lms_quizzes').delete().eq('id', quizzes[mod.id].id)
+                                                if (window.confirm("Excluir este exercício?")) {
+                                                    await supabase.from('lms_quizzes').delete().eq('id', quizzes[`${mod.id}_exercise`].id)
                                                     fetchCourseDetails(selectedCourse.id)
                                                 }
                                             }}>Excluir</button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button 
-                                            onClick={() => handleOpenQuizForm(mod.id, 'exercise')}
-                                            style={{ flex: 1, padding: '0.75rem', border: '1px dashed #BAE6FD', borderRadius: '6px', color: '#0369A1', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                        >
-                                            <Plus size={16} /> Adicionar Exercício
-                                        </button>
-                                        <button 
-                                            onClick={() => handleOpenQuizForm(mod.id, 'final_exam')}
-                                            style={{ flex: 1, padding: '0.75rem', border: '1px dashed #9333ea', borderRadius: '6px', color: '#9333ea', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                                        >
-                                            <Trophy size={16} /> Adicionar Prova Final
-                                        </button>
+                                    <button 
+                                        onClick={() => handleOpenQuizForm(mod.id, 'exercise')}
+                                        style={{ width: '100%', padding: '0.75rem', border: '1px dashed #BAE6FD', borderRadius: '6px', color: '#0369A1', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                    >
+                                        <Plus size={16} /> Adicionar Exercício de Fixação
+                                    </button>
+                                )}
+
+                                {/* PROVA FINAL */}
+                                {quizzes[`${mod.id}_final_exam`] ? (
+                                    <div style={{ padding: '0.75rem', backgroundColor: '#F5F3FF', borderRadius: '6px', border: '1px solid #DDD6FE', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#6D28D9' }}>
+                                            <Trophy size={16} />
+                                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>🏆 PROVA FINAL: {quizzes[`${mod.id}_final_exam`].title}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', backgroundColor: '#fff' }} onClick={() => handleManageQuiz(quizzes[`${mod.id}_final_exam`])}>Gerenciar Questões</button>
+                                            <button className="btn" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', color: 'var(--danger)' }} onClick={async () => {
+                                                if (window.confirm("Excluir esta prova final?")) {
+                                                    await supabase.from('lms_quizzes').delete().eq('id', quizzes[`${mod.id}_final_exam`].id)
+                                                    fetchCourseDetails(selectedCourse.id)
+                                                }
+                                            }}>Excluir</button>
+                                        </div>
                                     </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => handleOpenQuizForm(mod.id, 'final_exam')}
+                                        style={{ width: '100%', padding: '0.75rem', border: '1px dashed #DDD6FE', borderRadius: '6px', color: '#6D28D9', fontSize: '0.875rem', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                    >
+                                        <Trophy size={16} /> Adicionar Prova Final deste Módulo
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -991,9 +1009,29 @@ export default function LMSAdmin() {
                                                     <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>{String.fromCharCode(65+oidx)}</span>
                                                 </div>
                                                 <div style={{ flex: 1 }}>
-                                                    <input type="text" className="form-control" value={opt.text} onChange={e => {
-                                                        const newOpt = [...questionForm.options]; newOpt[oidx].text = e.target.value; setQuestionForm(prev => ({...prev, options: newOpt}))
-                                                    }} placeholder={`Texto da opção ${String.fromCharCode(65+oidx)}`} />
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <input type="text" className="form-control" value={opt.text} onChange={e => {
+                                                            const newOpt = [...questionForm.options]; newOpt[oidx].text = e.target.value; setQuestionForm(prev => ({...prev, options: newOpt}))
+                                                        }} placeholder={`Texto da opção ${String.fromCharCode(65+oidx)}`} />
+                                                        <button className="btn btn-secondary" style={{ padding: '0.4rem', flexShrink: 0 }} onClick={() => {
+                                                            const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+                                                            input.onchange = (e) => handleFileChange(e, 'option', oidx);
+                                                            input.click();
+                                                        }}>
+                                                            <UploadCloud size={14} />
+                                                        </button>
+                                                    </div>
+                                                    {opt.image_url && (
+                                                        <div style={{ marginTop: '0.5rem', position: 'relative', display: 'inline-block' }}>
+                                                            <img src={opt.image_url} alt="Opção" style={{ height: '50px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                                            <button 
+                                                                style={{ position: 'absolute', top: '-5px', right: '-5px', backgroundColor: 'var(--danger)', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                onClick={() => {
+                                                                    const newOpt = [...questionForm.options]; newOpt[oidx].image_url = null; setQuestionForm(prev => ({...prev, options: newOpt}))
+                                                                }}
+                                                            >×</button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
