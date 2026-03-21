@@ -868,203 +868,6 @@ export default function LMSAdmin() {
         </div>
     )
 
-    return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-            {view === 'list' && renderCourseList()}
-            {view === 'add_course' && renderAddCourse()}
-            {view === 'manage_course' && renderManageCourse()}
-
-            {/* MODAL DE GERENCIAMENTO DE PROVAS */}
-            {isEditingQuiz && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                    <div className="card animate-fade-in" style={{ width: '700px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-                            <div>
-                                <h3 style={{ fontSize: '1.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <CheckSquare size={20} /> Questões: {selectedQuiz?.title}
-                                </h3>
-                                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Média para aprovação: {selectedQuiz?.passing_grade}%</p>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tempo: {selectedQuiz?.time_limit_minutes > 0 ? `${selectedQuiz.time_limit_minutes} min` : 'Sem limite'}</p>
-                                </div>
-                            </div>
-                            <button className="btn" onClick={() => setIsEditingQuiz(false)}>Fechar</button>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {quizQuestions.map((q, idx) => (
-                                <div key={q.id} style={{ padding: '1.25rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
-                                        <div>
-                                            <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{idx + 1}. {q.question_text}</p>
-                                            {q.image_url && (
-                                                <img src={q.image_url} alt="Referência" style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '4px', marginTop: '0.5rem', border: '1px solid #ddd' }} />
-                                            )}
-                                        </div>
-                                        <Trash2 size={16} style={{ color: 'var(--danger)', cursor: 'pointer', flexShrink: 0 }} onClick={() => handleDeleteQuestion(q.id)} />
-                                    </div>
-                                        <div style={{ 
-                                            display: 'grid', 
-                                            gridTemplateColumns: q.options.length > 3 ? '1fr 1fr' : '1fr', 
-                                            gap: '0.75rem' 
-                                        }}>
-                                            {q.options.map((opt, oidx) => (
-                                            <div key={oidx} style={{ 
-                                                fontSize: '0.85rem', 
-                                                padding: '0.75rem',
-                                                backgroundColor: 'white',
-                                                borderRadius: '6px',
-                                                border: oidx === q.correct_option_index ? '2px solid #10b981' : '1px solid #e2e8f0',
-                                                color: oidx === q.correct_option_index ? '#059669' : 'inherit', 
-                                                fontWeight: oidx === q.correct_option_index ? 700 : 400 
-                                            }}>
-                                                <span style={{ marginRight: '0.5rem' }}>{String.fromCharCode(65 + oidx)})</span>
-                                                {typeof opt === 'object' ? opt.text : opt}
-                                                {typeof opt === 'object' && opt.image_url && (
-                                                    <img src={opt.image_url} alt="Opção" style={{ display: 'block', maxWidth: '100%', height: '80px', objectFit: 'contain', marginTop: '0.5rem', borderRadius: '4px' }} />
-                                                )}
-                                                {oidx === q.correct_option_index && <CheckSquare size={14} style={{ marginLeft: '0.5rem', display: 'inline' }} />}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                            {quizQuestions.length === 0 && <p className="text-center text-muted">Nenhuma questão cadastrada.</p>}
-                            
-                            {showQuestionBuilder ? (
-                                <div className="card animate-fade-in" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc', border: '2px solid var(--primary-alpha)' }}>
-                                    <h4 style={{ fontWeight: 700, marginBottom: '1.5rem', color: 'var(--primary)' }}>Construtor de Questão</h4>
-                                    
-                                    <div style={{ marginBottom: '1.5rem' }}>
-                                        <label className="form-label" style={{ fontWeight: 600 }}>Enunciado da Questão</label>
-                                        <textarea 
-                                            className="form-control" 
-                                            rows="3" 
-                                            value={questionForm.text}
-                                            onChange={e => setQuestionForm(prev => ({...prev, text: e.target.value}))}
-                                            placeholder="Escreva a pergunta aqui..."
-                                        ></textarea>
-                                        
-                                        <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <button 
-                                                className="btn btn-secondary" 
-                                                style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                                                onClick={() => questionImageRef.current.click()}
-                                            >
-                                                <UploadCloud size={14} /> {questionForm.image_url ? 'Alterar Imagem' : 'Anexar Imagem'}
-                                            </button>
-                                            <input type="file" ref={questionImageRef} hidden accept="image/*" onChange={e => handleFileChange(e, 'question')} />
-                                            {questionForm.image_url && (
-                                                <div style={{ position: 'relative' }}>
-                                                    <img src={questionForm.image_url} alt="Questão" style={{ height: '40px', borderRadius: '4px' }} />
-                                                    <button 
-                                                        onClick={() => setQuestionForm(prev => ({...prev, image_url: null}))}
-                                                        style={{ position: 'absolute', top: -5, right: -5, backgroundColor: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                                                    >×</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                        <label className="form-label" style={{ fontWeight: 600 }}>Alternativas (Mínimo 2)</label>
-                                        {questionForm.options.map((opt, oidx) => (
-                                            <div key={oidx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', paddingTop: '0.5rem' }}>
-                                                    <input 
-                                                        type="radio" 
-                                                        name="correct_choice" 
-                                                        checked={questionForm.correctIndex === oidx}
-                                                        onChange={() => setQuestionForm(prev => ({...prev, correctIndex: oidx}))}
-                                                        title="Marcar como CORRETA"
-                                                    />
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{String.fromCharCode(65+oidx)}</span>
-                                                </div>
-                                                
-                                                <div style={{ flex: 1 }}>
-                                                    <input 
-                                                        type="text" 
-                                                        className="form-control" 
-                                                        value={opt.text}
-                                                        onChange={e => {
-                                                            const newOpt = [...questionForm.options]
-                                                            newOpt[oidx].text = e.target.value
-                                                            setQuestionForm(prev => ({...prev, options: newOpt}))
-                                                        }}
-                                                        placeholder={`Texto da opção ${String.fromCharCode(65+oidx)}`}
-                                                    />
-                                                    <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <button 
-                                                            style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}
-                                                            className="btn btn-secondary"
-                                                            onClick={() => optionImageRefs.current[oidx].click()}
-                                                        >
-                                                            {opt.image_url ? 'Trocar Imagem' : '+ Imagem'}
-                                                        </button>
-                                                        <input type="file" ref={el => optionImageRefs.current[oidx] = el} hidden accept="image/*" onChange={e => handleFileChange(e, 'option', oidx)} />
-                                                        {opt.image_url && (
-                                                            <div style={{ position: 'relative' }}>
-                                                                <img src={opt.image_url} alt="Opção" style={{ height: '30px', borderRadius: '4px' }} />
-                                                                <button 
-                                                                    onClick={() => {
-                                                                        const newOpt = [...questionForm.options]
-                                                                        newOpt[oidx].image_url = null
-                                                                        setQuestionForm(prev => ({...prev, options: newOpt}))
-                                                                    }}
-                                                                    style={{ position: 'absolute', top: -4, right: -4, backgroundColor: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '12px', height: '12px', fontSize: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                                                                >×</button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {questionForm.options.length > 2 && (
-                                                    <button 
-                                                        onClick={() => {
-                                                            const newOpt = questionForm.options.filter((_, i) => i !== oidx)
-                                                            setQuestionForm(prev => ({...prev, options: newOpt}))
-                                                        }}
-                                                        style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem 0' }}
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        
-                                        {questionForm.options.length < 5 && (
-                                            <button 
-                                                className="btn btn-secondary" 
-                                                style={{ alignSelf: 'flex-start', fontSize: '0.8rem' }}
-                                                onClick={() => setQuestionForm(prev => ({...prev, options: [...prev.options, { text: '', image_url: null }]}))}
-                                            >
-                                                + Adicionar Alternativa
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
-                                        <button className="btn btn-secondary" onClick={() => setShowQuestionBuilder(false)}>Cancelar</button>
-                                        <button className="btn btn-primary" onClick={handleSaveFullQuestion} disabled={isSavingQuestion}>
-                                            {isSavingQuestion ? 'Salvando...' : 'Salvar Questão'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button 
-                                    className="btn btn-primary" 
-                                    style={{ marginTop: '1rem', justifyContent: 'center', padding: '1rem' }} 
-                                    onClick={handleOpenQuestionBuilder}
-                                >
-                                    + Adicionar Questão com Imagem/Texto
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-
     const renderDoubts = () => (
         <div className="animate-fade-in">
             <button className="btn btn-secondary" style={{ marginBottom: '1.5rem' }} onClick={() => setView('list')}>&larr; Voltar para listagem</button>
@@ -1111,26 +914,115 @@ export default function LMSAdmin() {
     )
 
     return (
-        <div className="lms-admin-container">
+        <div className="lms-admin-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
             {view === 'list' && renderCourseList()}
             {view === 'add_course' && renderAddCourse()}
             {view === 'manage_course' && renderManageCourse()}
             {view === 'doubts' && renderDoubts()}
 
+            {/* MODAL DE GERENCIAMENTO DE PROVAS (QUESTÕES) */}
+            {isEditingQuiz && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
+                    <div className="card animate-fade-in" style={{ width: '700px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.25rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <CheckSquare size={20} /> Questões: {selectedQuiz?.title}
+                                </h3>
+                                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Média para aprovação: {selectedQuiz?.passing_grade}%</p>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tempo: {selectedQuiz?.time_limit_minutes > 0 ? `${selectedQuiz.time_limit_minutes} min` : 'Sem limite'}</p>
+                                </div>
+                            </div>
+                            <button className="btn" onClick={() => setIsEditingQuiz(false)}>Fechar</button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {quizQuestions.map((q, idx) => (
+                                <div key={q.id} style={{ padding: '1.25rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
+                                        <div>
+                                            <p style={{ fontWeight: 600, fontSize: '0.95rem' }}>{idx + 1}. {q.question_text}</p>
+                                            {q.image_url && (
+                                                <img src={q.image_url} alt="Referência" style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '4px', marginTop: '0.5rem', border: '1px solid #ddd' }} />
+                                            )}
+                                        </div>
+                                        <Trash2 size={16} style={{ color: 'var(--danger)', cursor: 'pointer', flexShrink: 0 }} onClick={() => handleDeleteQuestion(q.id)} />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: q.options.length > 3 ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
+                                        {q.options.map((opt, oidx) => (
+                                            <div key={oidx} style={{ 
+                                                fontSize: '0.85rem', padding: '0.75rem', backgroundColor: 'white', borderRadius: '6px',
+                                                border: oidx === q.correct_option_index ? '2px solid #10b981' : '1px solid #e2e8f0',
+                                                color: oidx === q.correct_option_index ? '#059669' : 'inherit', fontWeight: oidx === q.correct_option_index ? 700 : 400 
+                                            }}>
+                                                <span style={{ marginRight: '0.5rem' }}>{String.fromCharCode(65 + oidx)})</span>
+                                                {typeof opt === 'object' ? opt.text : opt}
+                                                {typeof opt === 'object' && opt.image_url && (
+                                                    <img src={opt.image_url} alt="Opção" style={{ display: 'block', maxWidth: '100%', height: '80px', objectFit: 'contain', marginTop: '0.5rem', borderRadius: '4px' }} />
+                                                )}
+                                                {oidx === q.correct_option_index && <CheckSquare size={14} style={{ marginLeft: '0.5rem', display: 'inline' }} />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {quizQuestions.length === 0 && <p className="text-center text-muted">Nenhuma questão cadastrada.</p>}
+                            
+                            {showQuestionBuilder ? (
+                                <div className="card animate-fade-in" style={{ marginTop: '1.5rem', backgroundColor: '#f8fafc', border: '2px solid var(--primary-alpha)' }}>
+                                    <h4 style={{ fontWeight: 700, marginBottom: '1.5rem', color: 'var(--primary)' }}>Construtor de Questão</h4>
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        <label className="form-label" style={{ fontWeight: 600 }}>Enunciado da Questão</label>
+                                        <textarea className="form-control" rows="3" value={questionForm.text} onChange={e => setQuestionForm(prev => ({...prev, text: e.target.value}))} placeholder="Escreva a pergunta aqui..."></textarea>
+                                        <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <button className="btn btn-secondary" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={() => questionImageRef.current.click()}>
+                                                <UploadCloud size={14} /> {questionForm.image_url ? 'Alterar Imagem' : 'Anexar Imagem'}
+                                            </button>
+                                            <input type="file" ref={questionImageRef} hidden accept="image/*" onChange={e => handleFileChange(e, 'question')} />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <label className="form-label" style={{ fontWeight: 600 }}>Alternativas (Mínimo 2)</label>
+                                        {questionForm.options.map((opt, oidx) => (
+                                            <div key={oidx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', paddingTop: '0.5rem' }}>
+                                                    <input type="radio" name="correct_choice" checked={questionForm.correctIndex === oidx} onChange={() => setQuestionForm(prev => ({...prev, correctIndex: oidx}))} />
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>{String.fromCharCode(65+oidx)}</span>
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <input type="text" className="form-control" value={opt.text} onChange={e => {
+                                                        const newOpt = [...questionForm.options]; newOpt[oidx].text = e.target.value; setQuestionForm(prev => ({...prev, options: newOpt}))
+                                                    }} placeholder={`Texto da opção ${String.fromCharCode(65+oidx)}`} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+                                        <button className="btn btn-secondary" onClick={() => setShowQuestionBuilder(false)}>Cancelar</button>
+                                        <button className="btn btn-primary" onClick={handleSaveFullQuestion} disabled={isSavingQuestion}>
+                                            {isSavingQuestion ? 'Salvando...' : 'Salvar Questão'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button className="btn btn-primary" style={{ marginTop: '1rem', justifyContent: 'center', padding: '1rem' }} onClick={handleOpenQuestionBuilder}>
+                                    + Adicionar Questão com Imagem/Texto
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL DE MÓDULO */}
             {showModuleForm && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
                     <div className="card animate-fade-in" style={{ width: '400px' }}>
                         <h3 style={{ marginBottom: '1.5rem' }}>{moduleForm.id ? 'Editar Módulo' : 'Novo Módulo'}</h3>
                         <div className="form-group">
                             <label className="form-label">Título do Módulo</label>
-                            <input 
-                                type="text" 
-                                className="form-control" 
-                                value={moduleForm.title} 
-                                onChange={e => setModuleForm({...moduleForm, title: e.target.value})}
-                                placeholder="Ex: Introdução ao Curso"
-                            />
+                            <input type="text" className="form-control" value={moduleForm.title} onChange={e => setModuleForm({...moduleForm, title: e.target.value})} placeholder="Ex: Introdução ao Curso" />
                         </div>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                             <button className="btn btn-secondary" onClick={() => setShowModuleForm(false)}>Cancelar</button>
@@ -1142,25 +1034,16 @@ export default function LMSAdmin() {
 
             {/* MODAL DE AULA */}
             {showLessonForm && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
                     <div className="card animate-fade-in" style={{ width: '500px' }}>
                         <h3 style={{ marginBottom: '1.5rem' }}>{lessonForm.id ? 'Editar Aula' : 'Nova Aula'}</h3>
                         <div className="form-group">
                             <label className="form-label">Título da Aula</label>
-                            <input 
-                                type="text" 
-                                className="form-control" 
-                                value={lessonForm.title} 
-                                onChange={e => setLessonForm({...lessonForm, title: e.target.value})}
-                            />
+                            <input type="text" className="form-control" value={lessonForm.title} onChange={e => setLessonForm({...lessonForm, title: e.target.value})} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Tipo de Conteúdo</label>
-                            <select 
-                                className="form-control" 
-                                value={lessonForm.type} 
-                                onChange={e => setLessonForm({...lessonForm, type: e.target.value})}
-                            >
+                            <select className="form-control" value={lessonForm.type} onChange={e => setLessonForm({...lessonForm, type: e.target.value})}>
                                 <option value="video">Vídeo (YouTube/Vimeo)</option>
                                 <option value="pdf">Arquivo (PDF)</option>
                             </select>
@@ -1169,53 +1052,32 @@ export default function LMSAdmin() {
                         {lessonForm.type === 'video' ? (
                             <div className="form-group">
                                 <label className="form-label">URL do Vídeo</label>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    value={lessonForm.video_url} 
-                                    onChange={e => setLessonForm({...lessonForm, video_url: e.target.value})}
-                                    placeholder="https://youtube.com/..."
-                                />
+                                <input type="text" className="form-control" value={lessonForm.video_url} onChange={e => setLessonForm({...lessonForm, video_url: e.target.value})} placeholder="https://youtube.com/..." />
                             </div>
                         ) : (
                             <div className="form-group">
                                 <label className="form-label">Arquivo PDF</label>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <input 
-                                        type="text" 
-                                        className="form-control" 
-                                        value={lessonForm.pdf_url} 
-                                        readOnly 
-                                        placeholder="Nenhum arquivo subido"
-                                    />
-                                    <button className="btn btn-secondary" onClick={async () => {
-                                        const input = document.createElement('input')
-                                        input.type = 'file'; input.accept = '.pdf'
-                                        input.onchange = async (e) => {
-                                            const file = e.target.files[0]
-                                            if (file) {
-                                                const fileName = `${selectedCourse.id}_${Date.now()}.${file.name.split('.').pop()}`
-                                                const { error } = await supabase.storage.from('lms-docs').upload(`lessons/${fileName}`, file)
-                                                if (!error) {
-                                                    const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(`lessons/${fileName}`)
-                                                    setLessonForm(prev => ({ ...prev, pdf_url: publicUrl }))
-                                                } else alert('Erro no upload: ' + error.message)
-                                            }
+                                <button className="btn btn-secondary" style={{ width: '100%' }} onClick={async () => {
+                                    const input = document.createElement('input'); input.type = 'file'; input.accept = '.pdf';
+                                    input.onchange = async (e) => {
+                                        const file = e.target.files[0]
+                                        if (file) {
+                                            const fileName = `${selectedCourse.id}_${Date.now()}.${file.name.split('.').pop()}`
+                                            const { error } = await supabase.storage.from('lms-docs').upload(`lessons/${fileName}`, file)
+                                            if (!error) {
+                                                const { data: { publicUrl } } = supabase.storage.from('lms-docs').getPublicUrl(`lessons/${fileName}`)
+                                                setLessonForm(prev => ({ ...prev, pdf_url: publicUrl }))
+                                            } else alert('Erro no upload: ' + error.message)
                                         }
-                                        input.click()
-                                    }}>Subir PDF</button>
-                                </div>
+                                    }
+                                    input.click()
+                                }}>{lessonForm.pdf_url ? 'Alterar PDF' : 'Subir PDF'}</button>
                             </div>
                         )}
 
                         <div className="form-group">
                             <label className="form-label">Tempo teórico (Minutos)</label>
-                            <input 
-                                type="number" 
-                                className="form-control" 
-                                value={lessonForm.min_minutes} 
-                                onChange={e => setLessonForm({...lessonForm, min_minutes: e.target.value})}
-                            />
+                            <input type="number" className="form-control" value={lessonForm.min_minutes} onChange={e => setLessonForm({...lessonForm, min_minutes: e.target.value})} />
                         </div>
 
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
@@ -1228,48 +1090,23 @@ export default function LMSAdmin() {
 
             {/* MODAL DE QUIZ / PROVA */}
             {showQuizForm && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
                     <div className="card animate-fade-in" style={{ width: '500px' }}>
                         <h3 style={{ marginBottom: '1.5rem' }}>{quizForm.type === 'exercise' ? '📝 Novo Exercício' : '🏆 Nova Prova Final'}</h3>
                         <div className="form-group">
                             <label className="form-label">Título</label>
-                            <input 
-                                type="text" 
-                                className="form-control" 
-                                value={quizForm.title} 
-                                onChange={e => setQuizForm({...quizForm, title: e.target.value})}
-                            />
+                            <input type="text" className="form-control" value={quizForm.title} onChange={e => setQuizForm({...quizForm, title: e.target.value})} />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                             <div className="form-group">
                                 <label className="form-label">Tempo Limite (Min)</label>
-                                <input 
-                                    type="number" 
-                                    className="form-control" 
-                                    value={quizForm.time_limit} 
-                                    onChange={e => setQuizForm({...quizForm, time_limit: e.target.value})}
-                                />
+                                <input type="number" className="form-control" value={quizForm.time_limit} onChange={e => setQuizForm({...quizForm, time_limit: e.target.value})} />
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Média Mínima (%)</label>
-                                <input 
-                                    type="number" 
-                                    className="form-control" 
-                                    value={quizForm.passing_grade} 
-                                    onChange={e => setQuizForm({...quizForm, passing_grade: e.target.value})}
-                                />
+                                <input type="number" className="form-control" value={quizForm.passing_grade} onChange={e => setQuizForm({...quizForm, passing_grade: e.target.value})} />
                             </div>
                         </div>
-                        
-                        <div style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '4px', marginTop: '0.5rem' }}>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                                {quizForm.type === 'exercise' 
-                                    ? 'ℹ️ Exercícios liberam o próximo módulo ao serem concluídos.' 
-                                    : 'ℹ️ Provas finais exigem nota mínima para conclusão do curso.'
-                                }
-                            </p>
-                        </div>
-
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                             <button className="btn btn-secondary" onClick={() => setShowQuizForm(false)}>Cancelar</button>
                             <button className="btn btn-primary" onClick={handleSaveQuiz}>Criar e Adicionar Questões</button>
@@ -1278,60 +1115,18 @@ export default function LMSAdmin() {
                 </div>
             )}
 
-            {view === 'certificate_models' && (
-                <div className="animate-fade-in">
-                    <button className="btn btn-secondary" style={{ marginBottom: '1.5rem' }} onClick={() => setView('list')}>&larr; Voltar</button>
-                    <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Modelos de Certificado Oficiais</h3>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                        {certConfigs.map(config => (
-                            <div key={config.id} className="card">
-                                <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', textTransform: 'capitalize' }}>
-                                    {config.type === 'conclusao' ? '🎓 Certificado de Conclusão' : '📜 Certificado de Participação'}
-                                </h4>
-                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                                    Use variáveis como: <strong>{"{{nome}}"}</strong>, <strong>{"{{cpf}}"}</strong>, <strong>{"{{curso}}"}</strong>, <strong>{"{{nota}}"}</strong>, <strong>{"{{horas}}"}</strong>.
-                                </p>
-                                <textarea 
-                                    className="form-control" 
-                                    rows="10" 
-                                    defaultValue={config.template_text}
-                                    onBlur={(e) => handleSaveCertConfig(config.id, e.target.value)}
-                                    placeholder="Escreva o texto do certificado aqui..."
-                                    style={{ fontFamily: 'serif', padding: '1.5rem' }}
-                                ></textarea>
-                                <p style={{ fontSize: '0.7rem', marginTop: '1rem', textAlign: 'right', color: 'var(--text-muted)' }}>
-                                    Salva automaticamente ao sair do campo.
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {/* MODAL DE PREÇO */}
             {showPriceForm && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem' }}>
-                    <div className="card animate-fade-in" style={{ maxWidth: '400px', width: '100%', margin: 'auto' }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000 }}>
+                    <div className="card animate-fade-in" style={{ width: '400px' }}>
                         <h3 style={{ marginBottom: '1.5rem' }}>{priceForm.id ? 'Editar Preço' : 'Novo Preço Sugerido'}</h3>
                         <div className="form-group">
                             <label className="form-label">Nome do Curso</label>
-                            <input 
-                                type="text" 
-                                className="form-control" 
-                                value={priceForm.course_name}
-                                onChange={e => setPriceForm({...priceForm, course_name: e.target.value})}
-                                placeholder="Ex: NR-10 Básico"
-                            />
+                            <input type="text" className="form-control" value={priceForm.course_name} onChange={e => setPriceForm({...priceForm, course_name: e.target.value})} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Valor Padrão (R$)</label>
-                            <input 
-                                type="number" 
-                                className="form-control" 
-                                value={priceForm.default_value}
-                                onChange={e => setPriceForm({...priceForm, default_value: e.target.value})}
-                            />
+                            <input type="number" className="form-control" value={priceForm.default_value} onChange={e => setPriceForm({...priceForm, default_value: e.target.value})} />
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                             <button className="btn btn-secondary" onClick={() => setShowPriceForm(false)}>Cancelar</button>
