@@ -319,7 +319,26 @@ export default function LessonPlayer() {
                         const isCurrent = l.id === lessonId
                         const isDone = lessonStatus[l.id]?.is_completed
                         
-                        const isLocked = false
+                        const lessonModule = l.module_id
+                        const previousModules = [...new Set(allLessons.slice(0, idx).map(al => al.module_id))]
+                            .filter(m => m !== lessonModule)
+                        
+                        let isBlockedByQuiz = false
+                        for (const modId of previousModules) {
+                            const modQuiz = courseQuizzes.find(q => q.module_id === modId)
+                            if (modQuiz) {
+                                const qStat = quizStatus[modQuiz.id]
+                                if (modQuiz.quiz_type === 'final_exam') {
+                                    if (!qStat?.is_approved) { isBlockedByQuiz = true; break; }
+                                } else {
+                                    // Exercício: LIBERA se tiver pelo menos 1 tentativa (realizado)
+                                    if (!qStat || qStat.attempts_count === 0) { isBlockedByQuiz = true; break; }
+                                }
+                            }
+                        }
+
+                        // AULA LIVRE (ignore lessonStatus), mas BLOQUEADA POR QUIZ anterior
+                        const isLocked = isBlockedByQuiz
                         
                         // Verificar se existe quiz para este módulo logo após esta aula (se for a última do módulo)
                         const isLastInModule = idx === allLessons.length - 1 || allLessons[idx+1].module_id !== lessonModule
@@ -344,6 +363,7 @@ export default function LessonPlayer() {
                                         {isDone ? <CheckCircle size={14} /> : `${idx + 1}.`}
                                     </span>
                                     <span style={{ fontSize: '0.875rem', color: isCurrent ? 'white' : '#94a3b8', flex: 1 }}>{l.title}</span>
+                                    {isLocked && <Lock size={14} style={{ color: '#64748b' }} />}
                                 </div>
                                 
                                 {isLastInModule && moduleQuiz && (
@@ -368,8 +388,10 @@ export default function LessonPlayer() {
                                         <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                                             {moduleQuiz.quiz_type === 'final_exam' ? 'PROVA FINAL' : 'EXERCÍCIO'}
                                         </span>
-                                        { (moduleQuiz.quiz_type === 'final_exam' ? quizStatus[moduleQuiz.id]?.is_approved : quizStatus[moduleQuiz.id]?.attempts_count > 0) && (
+                                        { (moduleQuiz.quiz_type === 'final_exam' ? quizStatus[moduleQuiz.id]?.is_approved : quizStatus[moduleQuiz.id]?.attempts_count > 0) ? (
                                             <CheckCircle size={14} style={{ marginLeft: 'auto' }} />
+                                        ) : (
+                                            <Lock size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
                                         )}
                                     </div>
                                 )}

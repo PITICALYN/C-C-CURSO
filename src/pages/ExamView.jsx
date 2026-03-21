@@ -57,12 +57,18 @@ export default function ExamView() {
                 setAttemptsCount(results.attempts_count)
                 setScore(results.score || 0) // Carregar score anterior
                 if (results.is_approved) setStatus('result')
+                else if (results.attempts_count >= quizData.max_attempts) setStatus('blocked')
             }
         }
         setLoading(false)
     }
 
     const handleStartExam = () => {
+        if (attemptsCount >= (quiz?.max_attempts || 3)) {
+            setStatus('blocked')
+            return
+        }
+        
         if (quiz?.time_limit_minutes > 0) {
             setTimeLeft(quiz.time_limit_minutes * 60)
         }
@@ -257,7 +263,7 @@ export default function ExamView() {
                         <p style={{ fontSize: '1rem', color: '#64748b' }}>Sua nota final:</p>
                         <p style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{score}%</p>
                     </div>
-                    {attemptsCount < (quiz.max_attempts || 100) && (
+                    {score < quiz.passing_grade && attemptsCount < quiz.max_attempts && (
                         <button className="btn btn-secondary" onClick={handleStartExam}>
                             <RefreshCcw size={16} /> Tentar Novamente
                         </button>
