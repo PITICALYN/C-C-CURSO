@@ -1045,7 +1045,7 @@ export default function LMSAdmin() {
                             <label className="form-label">Tipo de Conteúdo</label>
                             <select className="form-control" value={lessonForm.type} onChange={e => setLessonForm({...lessonForm, type: e.target.value})}>
                                 <option value="video">Vídeo (YouTube/Vimeo)</option>
-                                <option value="pdf">Arquivo (PDF)</option>
+                                <option value="pdf">Arquivo (PDF, Word, Excel, PPT)</option>
                             </select>
                         </div>
 
@@ -1056,9 +1056,9 @@ export default function LMSAdmin() {
                             </div>
                         ) : (
                             <div className="form-group">
-                                <label className="form-label">Arquivo PDF</label>
+                                <label className="form-label">Arquivo / Documento</label>
                                 <button className="btn btn-secondary" style={{ width: '100%' }} onClick={async () => {
-                                    const input = document.createElement('input'); input.type = 'file'; input.accept = '.pdf';
+                                    const input = document.createElement('input'); input.type = 'file'; input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
                                     input.onchange = async (e) => {
                                         const file = e.target.files[0]
                                         if (file) {
@@ -1071,7 +1071,7 @@ export default function LMSAdmin() {
                                         }
                                     }
                                     input.click()
-                                }}>{lessonForm.pdf_url ? 'Alterar PDF' : 'Subir PDF'}</button>
+                                }}>{lessonForm.pdf_url ? 'Alterar Arquivo' : 'Subir Arquivo'}</button>
                             </div>
                         )}
 
