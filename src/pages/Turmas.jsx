@@ -138,7 +138,19 @@ export default function Turmas() {
 
 
     const handleFormChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value })
+        let value = e.target.value
+        const name = e.target.name
+
+        // Se for campo de preço, limpar caracteres indesejados (apenas números, ponto e vírgula)
+        if (['price_cash', 'price_card_10x', 'price_installments_3x'].includes(name)) {
+            // Remove tudo que não for número, ponto ou vírgula
+            value = value.replace(/[^0-9.,]/g, '')
+            // Substitui vírgula por ponto para o parseFloat do sistema
+            value = value.replace(',', '.')
+        }
+
+        const updated = { ...formData, [name]: value }
+        setFormData(updated)
     }
 
     const handleSubmit = async () => {
@@ -637,15 +649,45 @@ export default function Turmas() {
                     <div className="form-group"><label className="form-label">Carga Horária (Duração)</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleFormChange} placeholder="Ex: 80 horas" /></div>
                     <div className="form-group">
                         <label className="form-label">Preço À Vista (R$)</label>
-                        <input type="number" step="0.01" min="0" className="form-control" name="price_cash" value={formData.price_cash} onChange={handleFormChange} placeholder="Ex: 1200.00" />
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            name="price_cash" 
+                            value={formData.price_cash} 
+                            onChange={handleFormChange} 
+                            placeholder="Ex: 3300.00" 
+                            onKeyDown={(e) => {
+                                if (['e', 'E', '+', '-', '*'].includes(e.key)) e.preventDefault();
+                            }}
+                        />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Preço Cartão (10x s/ juros)</label>
-                        <input type="number" step="0.01" min="0" className="form-control" name="price_card_10x" value={formData.price_card_10x} onChange={handleFormChange} placeholder="Ex: 1500.00" />
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            name="price_card_10x" 
+                            value={formData.price_card_10x} 
+                            onChange={handleFormChange} 
+                            placeholder="Ex: 3800.00" 
+                            onKeyDown={(e) => {
+                                if (['e', 'E', '+', '-', '*'].includes(e.key)) e.preventDefault();
+                            }}
+                        />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Preço Boleto (3x)</label>
-                        <input type="number" step="0.01" min="0" className="form-control" name="price_installments_3x" value={formData.price_installments_3x} onChange={handleFormChange} placeholder="Ex: 1400.00" />
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            name="price_installments_3x" 
+                            value={formData.price_installments_3x} 
+                            onChange={handleFormChange} 
+                            placeholder="Ex: 3750.00" 
+                            onKeyDown={(e) => {
+                                if (['e', 'E', '+', '-', '*'].includes(e.key)) e.preventDefault();
+                            }}
+                        />
                     </div>
                 </div>
             </div>
