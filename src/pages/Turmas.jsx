@@ -22,7 +22,6 @@ export default function Turmas() {
         course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
         start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136',
         lms_course_id: '',
-        course_value: '',
         price_cash: '',
         price_card_10x: '',
         price_installments_3x: ''
@@ -187,7 +186,6 @@ export default function Turmas() {
             schedule: formData.schedule,
             duration: formData.duration,
             lms_course_id: formData.lms_course_id || null,
-            course_value: formData.course_value ? parseFloat(formData.course_value) : 0,
             price_cash: formData.price_cash ? parseFloat(formData.price_cash) : 0,
             price_card_10x: formData.price_card_10x ? parseFloat(formData.price_card_10x) : 0,
             price_installments_3x: formData.price_installments_3x ? parseFloat(formData.price_installments_3x) : 0
@@ -224,7 +222,6 @@ export default function Turmas() {
             schedule: turma.schedule || '',
             duration: turma.duration || '',
             lms_course_id: turma.lms_course_id || '',
-            course_value: turma.course_value || '',
             price_cash: turma.priceCash || '',
             price_card_10x: turma.priceCard10x || '',
             price_installments_3x: turma.priceBoleto3x || ''
@@ -252,7 +249,7 @@ export default function Turmas() {
         setEditingId(null)
         setFormData({ 
             name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '', 
-            course_value: '', price_cash: '', price_card_10x: '', price_installments_3x: '' 
+            price_cash: '', price_card_10x: '', price_installments_3x: '' 
         })
     }
 
@@ -629,10 +626,6 @@ export default function Turmas() {
                         )}
                     </div>
                     <div className="form-group"><label className="form-label">Carga Horária (Duração)</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleFormChange} placeholder="Ex: 80 horas" /></div>
-                    <div className="form-group">
-                        <label className="form-label">Preço Sugerido (Geral)</label>
-                        <input type="number" step="0.01" className="form-control" name="course_value" value={formData.course_value} onChange={handleFormChange} />
-                    </div>
                     <div className="form-group">
                         <label className="form-label">Preço À Vista (R$)</label>
                         <input type="number" step="0.01" className="form-control" name="price_cash" value={formData.price_cash} onChange={handleFormChange} placeholder="Ex: 1200.00" />
