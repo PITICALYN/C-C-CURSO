@@ -16,7 +16,8 @@ export default function Alunos() {
         pai: '', mae: '', education_level: 'Ensino Médio Completo', email: '', phone: '',
         cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: '',
         how_knew: 'Amigo', how_knew_other: '',
-        base_value: '', discount_value: '', manual_signed: false
+        base_value: '', discount_value: '', manual_signed: false,
+        payment_method: 'À Vista (PIX/Dinheiro)'
     })
 
     const [showAuthModal, setShowAuthModal] = useState(false)
@@ -128,7 +129,8 @@ export default function Alunos() {
             address: { cep: formData.cep, rua: formData.rua, numero: formData.numero, bairro: formData.bairro, cidade: formData.cidade, estado: formData.estado },
             base_value: formData.base_value ? parseFloat(formData.base_value) : 0,
             discount_value: formData.discount_value && discountUnlocked ? parseFloat(formData.discount_value) : 0,
-            manual_signed: formData.manual_signed
+            manual_signed: formData.manual_signed,
+            payment_method: formData.payment_method
         }
 
         let result;
@@ -154,7 +156,8 @@ export default function Alunos() {
             pai: '', mae: '', education_level: 'Ensino Médio Completo', email: '', phone: '',
             cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: '',
             how_knew: 'Amigo', how_knew_other: '',
-            base_value: '', discount_value: '', manual_signed: false
+            base_value: '', discount_value: '', manual_signed: false,
+            payment_method: 'À Vista (PIX/Dinheiro)'
         })
         setIsEditing(null)
         setDiscountUnlocked(false)
@@ -185,7 +188,8 @@ export default function Alunos() {
             how_knew_other: s.how_knew_other || '',
             base_value: s.base_value || '',
             discount_value: s.discount_value || '',
-            manual_signed: s.manual_signed || false
+            manual_signed: s.manual_signed || false,
+            payment_method: s.payment_method || 'À Vista (PIX/Dinheiro)'
         })
         setIsEditing(s.id)
         setView('add')
@@ -469,7 +473,7 @@ export default function Alunos() {
 
             <div className="card" style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>4. Dados Financeiros & Matrícula</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', alignItems: 'end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1.5rem', alignItems: 'end' }}>
                     <div className="form-group">
                         <label className="form-label">Valor do Curso Bruto (R$)</label>
                         <input type="number" step="0.01" className="form-control" name="base_value" value={formData.base_value} onChange={handleFormChange} placeholder="Ex: 1500.00" />
@@ -485,14 +489,20 @@ export default function Alunos() {
                             )}
                         </div>
                     </div>
+                    <div className="form-group">
+                        <label className="form-label">Forma de Pagamento</label>
+                        <select className="form-control" name="payment_method" value={formData.payment_method} onChange={handleFormChange}>
+                            <option>À Vista (PIX/Dinheiro)</option>
+                            <option>Cartão de Crédito (até 10x)</option>
+                            <option>Boleto Parcelado (3x)</option>
+                            <option>Empresa Faturado</option>
+                        </select>
+                    </div>
                     <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingBottom: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <input type="checkbox" id="manual_signed" checked={formData.manual_signed} onChange={(e) => setFormData({ ...formData, manual_signed: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
                             <label htmlFor="manual_signed" style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--primary)', fontSize: '0.9rem' }}>Aluno Assinou o Manual?</label>
                         </div>
-                        <button type="button" className="btn btn-secondary" onClick={handleDownloadManual} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Printer size={16} /> Imprimir Manual
-                        </button>
                     </div>
                 </div>
             </div>

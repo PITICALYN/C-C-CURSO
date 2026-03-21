@@ -14,6 +14,7 @@ export default function Turmas() {
     const [userProfile, setUserProfile] = useState(null)
     const [isEditing, setIsEditing] = useState(false)
     const [editingId, setEditingId] = useState(null)
+    const [showPast, setShowPast] = useState(false)
     const { session } = useAuth()
 
     const [formData, setFormData] = useState({
@@ -21,7 +22,10 @@ export default function Turmas() {
         course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
         start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136',
         lms_course_id: '',
-        course_value: ''
+        course_value: '',
+        price_cash: '',
+        price_card_10x: '',
+        price_installments_3x: ''
     })
     const [lmsCourses, setLmsCourses] = useState([])
 
@@ -94,6 +98,7 @@ export default function Turmas() {
                 .select(`
                     id, name, course_name, start_date, actual_start_date, predicted_end_date, actual_end_date, schedule, duration,
                     lms_course_id, evaluation_pdf_url,
+                    price_cash, price_card_10x, price_installments_3x,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -111,7 +116,10 @@ export default function Turmas() {
                 schedule: c.schedule,
                 duration: c.duration,
                 studentsCount: c.students[0]?.count || 0,
-                evaluationUrl: c.evaluation_pdf_url
+                evaluationUrl: c.evaluation_pdf_url,
+                priceCash: c.price_cash,
+                priceCard10x: c.price_card_10x,
+                priceBoleto3x: c.price_installments_3x
             }))
 
             // Reorganizando e Forçando state default p/ Form
@@ -179,7 +187,10 @@ export default function Turmas() {
             schedule: formData.schedule,
             duration: formData.duration,
             lms_course_id: formData.lms_course_id || null,
-            course_value: formData.course_value ? parseFloat(formData.course_value) : 0
+            course_value: formData.course_value ? parseFloat(formData.course_value) : 0,
+            price_cash: formData.price_cash ? parseFloat(formData.price_cash) : 0,
+            price_card_10x: formData.price_card_10x ? parseFloat(formData.price_card_10x) : 0,
+            price_installments_3x: formData.price_installments_3x ? parseFloat(formData.price_installments_3x) : 0
         }
 
         if (isEditing && editingId) {
@@ -213,7 +224,10 @@ export default function Turmas() {
             schedule: turma.schedule || '',
             duration: turma.duration || '',
             lms_course_id: turma.lms_course_id || '',
-            course_value: turma.course_value || ''
+            course_value: turma.course_value || '',
+            price_cash: turma.priceCash || '',
+            price_card_10x: turma.priceCard10x || '',
+            price_installments_3x: turma.priceBoleto3x || ''
         })
         setIsEditing(true)
         setEditingId(turma.id)
@@ -236,7 +250,10 @@ export default function Turmas() {
         setView('list')
         setIsEditing(false)
         setEditingId(null)
-        setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '', course_value: '' })
+        setFormData({ 
+            name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '', 
+            course_value: '', price_cash: '', price_card_10x: '', price_installments_3x: '' 
+        })
     }
 
     const handleStartClass = (classId, className) => {
@@ -366,16 +383,23 @@ export default function Turmas() {
         <div className="animate-fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Turmas</h2>
-                <button className="btn btn-primary" onClick={() => setView('add')}>
-                    <BookOpen size={16} /> Nova Turma
-                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button className={`btn ${showPast ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setShowPast(!showPast)}>
+                        {showPast ? 'Ver Apenas Ativas' : 'Ver Todas (Incluindo Passadas)'}
+                    </button>
+                    <button className="btn btn-primary" onClick={() => setView('add')}>
+                        <BookOpen size={16} /> Nova Turma
+                    </button>
+                </div>
             </div>
 
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '2rem' }}>Carregando dados da Nuvem...</div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                    {classes.map(turma => (
+                    {classes
+                        .filter(t => showPast || !t.actualEndDate)
+                        .map(turma => (
                         <div key={turma.id} className="card">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
                                 <div>
@@ -606,9 +630,20 @@ export default function Turmas() {
                     </div>
                     <div className="form-group"><label className="form-label">Carga Horária (Duração)</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleFormChange} placeholder="Ex: 80 horas" /></div>
                     <div className="form-group">
-                        <label className="form-label">Valor do Curso (R$)</label>
-                        <input type="number" step="0.01" className="form-control" name="course_value" value={formData.course_value} onChange={handleFormChange} placeholder="Ex: 1500.00" />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Este valor será sugerido automaticamente na matrícula dos alunos.</span>
+                        <label className="form-label">Preço Sugerido (Geral)</label>
+                        <input type="number" step="0.01" className="form-control" name="course_value" value={formData.course_value} onChange={handleFormChange} />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Preço À Vista (R$)</label>
+                        <input type="number" step="0.01" className="form-control" name="price_cash" value={formData.price_cash} onChange={handleFormChange} placeholder="Ex: 1200.00" />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Preço Cartão (10x s/ juros)</label>
+                        <input type="number" step="0.01" className="form-control" name="price_card_10x" value={formData.price_card_10x} onChange={handleFormChange} placeholder="Ex: 1500.00" />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Preço Boleto (3x)</label>
+                        <input type="number" step="0.01" className="form-control" name="price_installments_3x" value={formData.price_installments_3x} onChange={handleFormChange} placeholder="Ex: 1400.00" />
                     </div>
                 </div>
             </div>
