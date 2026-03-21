@@ -56,31 +56,17 @@ export default function Turmas() {
         return count
     }
 
-    // Auto-preenchimento ao mudar o curso
+    // Sincronização automática de Carga Horária por Sigla (Motor Fase 17)
     useEffect(() => {
-        const fetchDefaultPrice = async () => {
-            const { data } = await supabase
-                .from('course_prices')
-                .select('default_value')
-                .eq('course_name', formData.course_name)
-                .maybeSingle()
-            
-            if (data) {
-                setFormData(prev => ({ ...prev, course_value: data.default_value }))
-            }
+        const course_name = formData.course_name || '';
+        if (course_name.includes('(CD-CL)')) {
+            setFormData(prev => ({ ...prev, duration: '136' }));
+        } else if (course_name.includes('(CD-TO)')) {
+            setFormData(prev => ({ ...prev, duration: '121' }));
+        } else if (course_name.includes('(CD-CM)')) {
+            setFormData(prev => ({ ...prev, duration: '146' }));
         }
-
-        const course = formData.course_name.toLowerCase()
-        if (course.includes('treinamento')) {
-            setFormData(prev => ({ ...prev, duration: '', schedule: '', course_value: '' }))
-        } else if (course.includes('topografia') || course.includes('to')) {
-            setFormData(prev => ({ ...prev, duration: '80', schedule: 'Seg a Sex 18h as 22h' }))
-            fetchDefaultPrice()
-        } else {
-            setFormData(prev => ({ ...prev, duration: '136', schedule: 'Seg a Sex 18h as 22h' }))
-            fetchDefaultPrice()
-        }
-    }, [formData.course_name])
+    }, [formData.course_name]);
 
     const generateNextClassName = (existingClasses) => {
         const yearSuffix = new Date().getFullYear().toString().slice(-2) // Ex: "26" p/ 2026
@@ -150,17 +136,6 @@ export default function Turmas() {
         fetchLmsCourses()
     }, [session])
 
-    // Sincronização automática de Carga Horária por Sigla (Motor Fase 17)
-    useEffect(() => {
-        const course_name = formData.course_name || '';
-        if (course_name.includes('(CD-CL)')) {
-            setFormData(prev => ({ ...prev, duration: '136' }));
-        } else if (course_name.includes('(CD-TO)')) {
-            setFormData(prev => ({ ...prev, duration: '121' }));
-        } else if (course_name.includes('(CD-CM)')) {
-            setFormData(prev => ({ ...prev, duration: '146' }));
-        }
-    }, [formData.course_name]);
 
     const handleFormChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -169,6 +144,12 @@ export default function Turmas() {
     const handleSubmit = async () => {
         if (!formData.name || !formData.course_name) {
             alert('Por favor, preencha o Nome e Curso.')
+            return
+        }
+
+        // Trava para valores negativos
+        if (parseFloat(formData.price_cash) < 0 || parseFloat(formData.price_card_10x) < 0 || parseFloat(formData.price_installments_3x) < 0) {
+            alert('Os valores de investimento não podem ser negativos.')
             return
         }
 
@@ -219,7 +200,10 @@ export default function Turmas() {
             } else {
                 alert('Turma criada com sucesso na Nuvem!')
                 setView('list')
-                setFormData({ name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '' })
+                setFormData({ 
+                    name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '',
+                    price_cash: '', price_card_10x: '', price_installments_3x: ''
+                })
                 fetchClasses()
             }
         }
@@ -240,6 +224,19 @@ export default function Turmas() {
         })
         setIsEditing(true)
         setEditingId(turma.id)
+        setView('add')
+    }
+
+    const handleNewClass = () => {
+        setFormData({ 
+            name: generateNextClassName(classes), 
+            course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)', 
+            start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136', 
+            lms_course_id: '',
+            price_cash: '', price_card_10x: '', price_installments_3x: '' 
+        })
+        setIsEditing(false)
+        setEditingId(null)
         setView('add')
     }
 
@@ -511,7 +508,7 @@ export default function Turmas() {
                         </div>
                     ))}
 
-                    <div className="card" onClick={() => setView('add')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', border: '2px dashed var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <div className="card" onClick={handleNewClass} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', border: '2px dashed var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
                         <BookOpen size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
                         <p style={{ fontWeight: 600 }}>Abrir Nova Turma</p>
                         <button className="btn btn-secondary" style={{ marginTop: '1rem' }}>Configurar Grade</button>
@@ -640,15 +637,15 @@ export default function Turmas() {
                     <div className="form-group"><label className="form-label">Carga Horária (Duração)</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleFormChange} placeholder="Ex: 80 horas" /></div>
                     <div className="form-group">
                         <label className="form-label">Preço À Vista (R$)</label>
-                        <input type="number" step="0.01" className="form-control" name="price_cash" value={formData.price_cash} onChange={handleFormChange} placeholder="Ex: 1200.00" />
+                        <input type="number" step="0.01" min="0" className="form-control" name="price_cash" value={formData.price_cash} onChange={handleFormChange} placeholder="Ex: 1200.00" />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Preço Cartão (10x s/ juros)</label>
-                        <input type="number" step="0.01" className="form-control" name="price_card_10x" value={formData.price_card_10x} onChange={handleFormChange} placeholder="Ex: 1500.00" />
+                        <input type="number" step="0.01" min="0" className="form-control" name="price_card_10x" value={formData.price_card_10x} onChange={handleFormChange} placeholder="Ex: 1500.00" />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Preço Boleto (3x)</label>
-                        <input type="number" step="0.01" className="form-control" name="price_installments_3x" value={formData.price_installments_3x} onChange={handleFormChange} placeholder="Ex: 1400.00" />
+                        <input type="number" step="0.01" min="0" className="form-control" name="price_installments_3x" value={formData.price_installments_3x} onChange={handleFormChange} placeholder="Ex: 1400.00" />
                     </div>
                 </div>
             </div>
