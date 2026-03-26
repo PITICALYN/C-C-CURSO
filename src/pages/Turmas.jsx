@@ -24,7 +24,8 @@ export default function Turmas() {
         lms_course_id: '',
         price_cash: '',
         price_card_10x: '',
-        price_installments_3x: ''
+        price_installments_3x: '',
+        is_immediate_start: false
     })
     const [lmsCourses, setLmsCourses] = useState([])
 
@@ -84,6 +85,7 @@ export default function Turmas() {
                     id, name, course_name, start_date, actual_start_date, predicted_end_date, actual_end_date, schedule, duration,
                     lms_course_id, evaluation_pdf_url,
                     price_cash, price_card_10x, price_installments_3x,
+                    is_immediate_start,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -104,7 +106,8 @@ export default function Turmas() {
                 evaluationUrl: c.evaluation_pdf_url,
                 priceCash: c.price_cash,
                 priceCard10x: c.price_card_10x,
-                priceBoleto3x: c.price_installments_3x
+                priceBoleto3x: c.price_installments_3x,
+                isImmediateStart: c.is_immediate_start
             }))
 
             // Reorganizando e Forçando state default p/ Form
@@ -138,7 +141,7 @@ export default function Turmas() {
 
 
     const handleFormChange = (e) => {
-        let value = e.target.value
+        let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
         const name = e.target.name
 
         // Se for campo de preço, limpar caracteres indesejados (apenas números, ponto e vírgula)
@@ -168,7 +171,7 @@ export default function Turmas() {
         // Validação Inteligente de Carga Horária vs Dias Úteis (Motor Fase 16)
         const isTreinamentoLivre = formData.course_name.toLowerCase().includes('treinamento')
 
-        if (!isTreinamentoLivre && formData.start_date && formData.predicted_end_date && formData.schedule && formData.duration) {
+        if (!isTreinamentoLivre && !formData.is_immediate_start && formData.start_date && formData.predicted_end_date && formData.schedule && formData.duration) {
             const isSaturday = formData.schedule.toLowerCase().includes('sabado') || formData.schedule.toLowerCase().includes('sábado')
             const applicableDays = countCourseDays(formData.start_date, formData.predicted_end_date, isSaturday)
 
@@ -186,14 +189,15 @@ export default function Turmas() {
         const newClass = {
             name: formData.name,
             course_name: formData.course_name,
-            start_date: formData.start_date ? formData.start_date : null,
-            predicted_end_date: formData.predicted_end_date ? formData.predicted_end_date : null,
+            start_date: (formData.is_immediate_start || !formData.start_date) ? null : formData.start_date,
+            predicted_end_date: (formData.is_immediate_start || !formData.predicted_end_date) ? null : formData.predicted_end_date,
             schedule: formData.schedule,
             duration: formData.duration,
             lms_course_id: formData.lms_course_id || null,
             price_cash: formData.price_cash ? parseFloat(formData.price_cash) : 0,
             price_card_10x: formData.price_card_10x ? parseFloat(formData.price_card_10x) : 0,
-            price_installments_3x: formData.price_installments_3x ? parseFloat(formData.price_installments_3x) : 0
+            price_installments_3x: formData.price_installments_3x ? parseFloat(formData.price_installments_3x) : 0,
+            is_immediate_start: formData.is_immediate_start || false
         }
 
         if (isEditing && editingId) {
@@ -214,7 +218,8 @@ export default function Turmas() {
                 setView('list')
                 setFormData({ 
                     name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '',
-                    price_cash: '', price_card_10x: '', price_installments_3x: ''
+                    price_cash: '', price_card_10x: '', price_installments_3x: '',
+                    is_immediate_start: false
                 })
                 fetchClasses()
             }
@@ -232,7 +237,8 @@ export default function Turmas() {
             lms_course_id: turma.lms_course_id || '',
             price_cash: turma.priceCash || '',
             price_card_10x: turma.priceCard10x || '',
-            price_installments_3x: turma.priceBoleto3x || ''
+            price_installments_3x: turma.priceBoleto3x || '',
+            is_immediate_start: turma.isImmediateStart || false
         })
         setIsEditing(true)
         setEditingId(turma.id)
@@ -245,7 +251,8 @@ export default function Turmas() {
             course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)', 
             start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136', 
             lms_course_id: '',
-            price_cash: '', price_card_10x: '', price_installments_3x: '' 
+            price_cash: '', price_card_10x: '', price_installments_3x: '',
+            is_immediate_start: false
         })
         setIsEditing(false)
         setEditingId(null)
@@ -270,7 +277,8 @@ export default function Turmas() {
         setEditingId(null)
         setFormData({ 
             name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '', 
-            price_cash: '', price_card_10x: '', price_installments_3x: '' 
+            price_cash: '', price_card_10x: '', price_installments_3x: '',
+            is_immediate_start: false
         })
     }
 
@@ -432,7 +440,7 @@ export default function Turmas() {
                                     }}>
                                         <Users size={14} /> {turma.studentsCount} Alunos
                                     </span>
-                                    {(userProfile?.role === 'admin' || userProfile?.role === 'coordenador') && (
+                                    {(userProfile?.role === 'admin' || userProfile?.role === 'coordenador' || userProfile?.role === 'atendente') && (
                                         <div style={{ display: 'flex', gap: '0.25rem' }}>
                                             <button className="btn btn-secondary" style={{ padding: '0.25rem', height: 'auto' }} onClick={() => handleEditClass(turma)} title="Editar Turma">
                                                 <Edit size={14} />
@@ -446,34 +454,44 @@ export default function Turmas() {
                             </div>
 
                             <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <CalendarIcon size={16} className="text-primary" />
-                                    <div>
-                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Início (Previsto vs Real)</p>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                                            <p className="text-muted" style={{ textDecoration: turma.actualStartDate ? 'line-through' : 'none' }}>
-                                                {turma.startDate ? new Date(turma.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                            </p>
-                                            {turma.actualStartDate && (
-                                                <span style={{ color: '#065F46', fontWeight: 600 }}>{new Date(turma.actualStartDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                                            )}
-                                        </div>
+                                {turma.isImmediateStart ? (
+                                    <div style={{ flex: 1, textAlign: 'center', padding: '0.5rem', backgroundColor: '#ECFDF5', borderRadius: '4px', border: '1px solid #A7F3D0' }}>
+                                        <p style={{ fontWeight: 600, color: '#065F46', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                            <Clock size={16} /> Início Imediato (Sem datas fixas)
+                                        </p>
                                     </div>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Clock size={16} className={turma.actualEndDate ? "text-success" : "text-warning"} />
-                                    <div>
-                                        <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Término ({turma.actualEndDate ? 'Real / Fechado' : 'Previsão'})</p>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                                            <p className="text-muted" style={{ textDecoration: turma.actualEndDate ? 'line-through' : 'none' }}>
-                                                {turma.predictedEndDate ? new Date(turma.predictedEndDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
-                                            </p>
-                                            {turma.actualEndDate && (
-                                                <span style={{ color: '#065F46', fontWeight: 600 }}>{new Date(turma.actualEndDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                                            )}
+                                ) : (
+                                    <>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <CalendarIcon size={16} className="text-primary" />
+                                            <div>
+                                                <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Início (Previsto vs Real)</p>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                                                    <p className="text-muted" style={{ textDecoration: turma.actualStartDate ? 'line-through' : 'none' }}>
+                                                        {turma.startDate ? new Date(turma.startDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                                    </p>
+                                                    {turma.actualStartDate && (
+                                                        <span style={{ color: '#065F46', fontWeight: 600 }}>{new Date(turma.actualStartDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Clock size={16} className={turma.actualEndDate ? "text-success" : "text-warning"} />
+                                            <div>
+                                                <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Término ({turma.actualEndDate ? 'Real / Fechado' : 'Previsão'})</p>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                                                    <p className="text-muted" style={{ textDecoration: turma.actualEndDate ? 'line-through' : 'none' }}>
+                                                        {turma.predictedEndDate ? new Date(turma.predictedEndDate + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                                    </p>
+                                                    {turma.actualEndDate && (
+                                                        <span style={{ color: '#065F46', fontWeight: 600 }}>{new Date(turma.actualEndDate + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -613,15 +631,36 @@ export default function Turmas() {
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Gerado automaticamente pelo sistema, mas pode ser alterado se necessário.</span>
                     </div>
                     <div className="form-group">
-                        <label className="form-label">Curso</label>
-                        <select className="form-control" name="course_name" value={formData.course_name} onChange={handleFormChange}>
-                            <option value="Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)">Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)</option>
-                            <option value="Controle Dimensional – Topografia (CD-TO)">Controle Dimensional – Topografia (CD-TO)</option>
-                            <option value="Controle Dimensional - Mecânica- (CD-CM)">Controle Dimensional - Mecânica- (CD-CM)</option>
-                            <option value="TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)">TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)</option>
-                            <option value="Treinamento Dimensional – Topografia (CD-TO)">Treinamento Dimensional – Topografia (CD-TO)</option>
-                            <option value="Treinamento Dimensional - Mecânica- (CD-CM)">Treinamento Dimensional - Mecânica- (CD-CM)</option>
-                        </select>
+                        <label className="form-label">Nome do Curso / Treinamento</label>
+                        <input 
+                            list="course-options" 
+                            className="form-control" 
+                            name="course_name" 
+                            value={formData.course_name} 
+                            onChange={handleFormChange} 
+                            placeholder="Digite ou selecione o curso"
+                        />
+                        <datalist id="course-options">
+                            <option value="Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)" />
+                            <option value="Controle Dimensional – Topografia (CD-TO)" />
+                            <option value="Controle Dimensional - Mecânica- (CD-CM)" />
+                            <option value="TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)" />
+                            <option value="Treinamento Dimensional – Topografia (CD-TO)" />
+                            <option value="Treinamento Dimensional - Mecânica- (CD-CM)" />
+                        </datalist>
+                    </div>
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem' }}>
+                        <label className="form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                            <input 
+                                type="checkbox" 
+                                name="is_immediate_start" 
+                                checked={formData.is_immediate_start} 
+                                onChange={handleFormChange} 
+                                style={{ width: '1.25rem', height: '1.25rem' }}
+                            />
+                            Turma de Início Imediato?
+                        </label>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(Oculta datas de início/fim)</span>
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                         <label className="form-label">Vincular Conteúdo Online (LMS)</label>
@@ -633,8 +672,14 @@ export default function Turmas() {
                         </select>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Selecione o curso que os alunos desta turma poderão acessar no portal.</span>
                     </div>
-                    <div className="form-group"><label className="form-label">Data de Início Programado</label><input type="date" className="form-control" name="start_date" value={formData.start_date} onChange={handleFormChange} /></div>
-                    <div className="form-group"><label className="form-label">Previsão de Término</label><input type="date" className="form-control" name="predicted_end_date" value={formData.predicted_end_date} onChange={handleFormChange} /></div>
+                    <div className="form-group">
+                        <label className="form-label">Data de Início Programado</label>
+                        <input type="date" className="form-control" name="start_date" value={formData.start_date} onChange={handleFormChange} disabled={formData.is_immediate_start} />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Previsão de Término</label>
+                        <input type="date" className="form-control" name="predicted_end_date" value={formData.predicted_end_date} onChange={handleFormChange} disabled={formData.is_immediate_start} />
+                    </div>
                     <div className="form-group">
                         <label className="form-label">Horários Base</label>
                         <select className="form-control" name="schedule" value={formData.schedule} onChange={handleFormChange}>
