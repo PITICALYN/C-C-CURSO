@@ -14,6 +14,7 @@ import LMSAdmin from './pages/LMSAdmin'
 import AreaAluno from './pages/AreaAluno'
 import LessonPlayer from './pages/LessonPlayer'
 import ExamView from './pages/ExamView'
+import ResetPassword from './pages/ResetPassword'
 
 const PrivateRoute = ({ children }) => {
   const { session } = useAuth()
@@ -27,6 +28,11 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/trocar-senha" element={
+            <PrivateRoute>
+              <ResetPassword />
+            </PrivateRoute>
+          } />
           <Route path="/" element={
             <PrivateRoute>
               <Layout />

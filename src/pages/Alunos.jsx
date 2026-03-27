@@ -161,13 +161,36 @@ export default function Alunos() {
         if (isEditing) {
             result = await supabase.from('students').update(studentPayload).eq('id', isEditing)
         } else {
-            result = await supabase.from('students').insert([studentPayload])
+            result = await supabase.from('students').insert([studentPayload]).select().single()
+            
+            // Automação de Login: Criar conta no Auth e na tabela de usuários
+            if (!result.error && result.data && formData.email) {
+                const cleanCPF = formData.cpf.replace(/\D/g, '')
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: formData.email,
+                    password: cleanCPF,
+                })
+
+                if (!authError && authData?.user) {
+                    await supabase.from('users').insert([{
+                        id: authData.user.id,
+                        email: formData.email,
+                        full_name: formData.full_name,
+                        role: 'student',
+                        must_change_password: true,
+                        is_active: true
+                    }])
+                    
+                    // Vincular user_id ao registro do aluno para rastreio
+                    await supabase.from('students').update({ user_id: authData.user.id }).eq('id', result.data.id)
+                }
+            }
         }
 
         if (result.error) {
             alert('Erro ao salvar no Supabase: ' + result.error.message)
         } else {
-            alert(isEditing ? 'Dados atualizados com sucesso!' : 'Matrícula realizada com sucesso!')
+            alert(isEditing ? 'Dados atualizados com sucesso!' : 'Matrícula e conta de acesso criadas com sucesso! (Senha inicial: CPF)')
             resetForm()
             setView('list')
             fetchStudents()

@@ -23,7 +23,19 @@ export default function Login() {
         if (error) {
             setError(error.message)
         } else {
-            navigate('/')
+            // Verificar se precisa trocar senha
+            const { data: { user } } = await supabase.auth.getUser()
+            const { data: profile } = await supabase
+                .from('users')
+                .select('must_change_password')
+                .eq('id', user.id)
+                .maybeSingle()
+
+            if (profile?.must_change_password) {
+                navigate('/trocar-senha')
+            } else {
+                navigate('/')
+            }
         }
         setLoading(false)
     }
