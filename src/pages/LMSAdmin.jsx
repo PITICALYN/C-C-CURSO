@@ -671,6 +671,20 @@ export default function LMSAdmin() {
                 correct_option_index: questionForm.correctIndex
             }])
         
+        // Sync with Central Question Bank for future automated use
+        if (!error) {
+            await supabase
+                .from('lms_question_bank')
+                .insert([{
+                    question_text: questionForm.text,
+                    image_url: questionForm.image_url,
+                    options: questionForm.options.filter(o => o.text.trim() || o.image_url),
+                    correct_option_index: questionForm.correctIndex,
+                    category: selectedCourse?.title || 'Geral',
+                    original_quiz_id: selectedQuiz.id
+                }])
+        }
+        
         setIsSavingQuestion(false)
         if (error) alert('Erro ao salvar questão: ' + error.message)
         else {
