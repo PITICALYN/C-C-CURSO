@@ -133,6 +133,14 @@ export default function Alunos() {
             .replace(/(-\d{2})\d+?$/, '$1')
     }
 
+    const validateRG = (rg) => {
+        if (!rg) return false
+        const clean = rg.replace(/[^\w]/g, '')
+        if (clean.length < 5) return false
+        if (!!clean.match(/^(\w)\1+$/)) return false // Evita "00000", "aaaaa"
+        return true
+    }
+
     const handleCEPBlur = async () => {
         const cep = formData.cep.replace(/\D/g, '')
         if (cep.length !== 8) return
@@ -187,6 +195,11 @@ export default function Alunos() {
 
         if (!validateCPF(formData.cpf)) {
             alert('CPF Inválido! Por favor, verifique os números digitados.')
+            return
+        }
+
+        if (!formData.rg || !validateRG(formData.rg)) {
+            alert('RG Inválido ou incompleto! Por favor, insira um documento válido.')
             return
         }
 
