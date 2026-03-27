@@ -27,7 +27,8 @@ export default function Turmas() {
         price_installments_3x: '',
         is_immediate_start: false,
         instructor_payment_type: 'fixed',
-        instructor_payment_value: 0
+        instructor_payment_value: 0,
+        create_lms_integration: false
     })
     const [lmsCourses, setLmsCourses] = useState([])
 
@@ -69,7 +70,15 @@ export default function Turmas() {
         } else if (course_name.includes('(CD-CM)')) {
             setFormData(prev => ({ ...prev, duration: '146' }));
         }
-    }, [formData.course_name]);
+
+        // Auto-vinculo inteligente: Se o nome do curso bater com um curso EAD existente, selecionar automaticamente
+        if (course_name && lmsCourses.length > 0) {
+            const match = lmsCourses.find(c => c.title.toLowerCase() === course_name.toLowerCase());
+            if (match && !formData.lms_course_id) {
+                setFormData(prev => ({ ...prev, lms_course_id: match.id, create_lms_integration: false }));
+            }
+        }
+    }, [formData.course_name, lmsCourses]);
 
     const generateNextClassName = (existingClasses) => {
         const yearSuffix = new Date().getFullYear().toString().slice(-2) // Ex: "26" p/ 2026
@@ -191,6 +200,29 @@ export default function Turmas() {
             }
         }
 
+        let finalLmsId = formData.lms_course_id || null
+
+        // Se o usuário pediu integração automática e não selecionou um curso existente
+        if (formData.create_lms_integration && !finalLmsId) {
+            const { data: newCourse, error: courseError } = await supabase
+                .from('lms_courses')
+                .insert([{
+                    title: formData.course_name,
+                    description: `Curso gerado automaticamente via Turma ${formData.name}`,
+                    is_published: true,
+                    instructor_payment_type: formData.instructor_payment_type,
+                    instructor_payment_value: formData.instructor_payment_value
+                }])
+                .select()
+                .single()
+            
+            if (courseError) {
+                alert('Erro ao criar curso EAD: ' + courseError.message)
+                return
+            }
+            finalLmsId = newCourse.id
+        }
+
         const newClass = {
             name: formData.name,
             course_name: formData.course_name,
@@ -198,7 +230,7 @@ export default function Turmas() {
             predicted_end_date: (formData.is_immediate_start || !formData.predicted_end_date) ? null : formData.predicted_end_date,
             schedule: formData.schedule,
             duration: formData.duration,
-            lms_course_id: formData.lms_course_id || null,
+            lms_course_id: finalLmsId,
             price_cash: formData.price_cash ? parseFloat(formData.price_cash) : 0,
             price_card_10x: formData.price_card_10x ? parseFloat(formData.price_card_10x) : 0,
             price_installments_3x: formData.price_installments_3x ? parseFloat(formData.price_installments_3x) : 0,
@@ -228,7 +260,8 @@ export default function Turmas() {
                     price_cash: '', price_card_10x: '', price_installments_3x: '',
                     is_immediate_start: false,
                     instructor_payment_type: 'fixed',
-                    instructor_payment_value: 0
+                    instructor_payment_value: 0,
+                    create_lms_integration: false
                 })
                 fetchClasses()
             }
@@ -249,7 +282,8 @@ export default function Turmas() {
             price_installments_3x: turma.priceBoleto3x || '',
             is_immediate_start: turma.isImmediateStart || false,
             instructor_payment_type: turma.instructor_payment_type || 'fixed',
-            instructor_payment_value: turma.instructor_payment_value || 0
+            instructor_payment_value: turma.instructor_payment_value || 0,
+            create_lms_integration: !!turma.lms_course_id
         })
         setIsEditing(true)
         setEditingId(turma.id)
@@ -681,13 +715,26 @@ export default function Turmas() {
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                         <label className="form-label">Vincular Conteúdo Online (LMS)</label>
-                        <select className="form-control" name="lms_course_id" value={formData.lms_course_id} onChange={handleFormChange}>
-                            <option value="">Nenhum curso vinculado</option>
-                            {lmsCourses.map(c => (
-                                <option key={c.id} value={c.id}>{c.title}</option>
-                            ))}
-                        </select>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Selecione o curso que os alunos desta turma poderão acessar no portal.</span>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <select className="form-control" name="lms_course_id" value={formData.lms_course_id} onChange={handleFormChange} style={{ flex: 1 }}>
+                                <option value="">Nenhum curso vinculado</option>
+                                {lmsCourses.map(c => (
+                                    <option key={c.id} value={c.id}>{c.title}</option>
+                                ))}
+                            </select>
+                            {!formData.lms_course_id && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer', whiteSpace: 'nowrap', backgroundColor: '#F0F9FF', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #BAE6FD', color: '#0369A1' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        name="create_lms_integration" 
+                                        checked={formData.create_lms_integration} 
+                                        onChange={handleFormChange} 
+                                    />
+                                    Criar Curso EAD Automático?
+                                </label>
+                            )}
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Selecione um curso existente ou marque para criar um novo curso EAD com o nome desta turma.</span>
                     </div>
                     <div className="form-group">
                         <label className="form-label">Data de Início Programado</label>
