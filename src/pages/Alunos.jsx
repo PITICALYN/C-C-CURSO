@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { generateDocument } from '../lib/pdfGenerator'
-import { Search, Plus, Filter, Eye, Printer, FileText, FileBadge, Award, UploadCloud, Paperclip, Lock, Unlock, BookOpen, CheckSquare } from 'lucide-react'
+import { Search, Plus, Filter, Eye, Printer, FileText, FileBadge, Award, UploadCloud, Paperclip, Lock, Unlock, BookOpen, CheckSquare, Activity, Key, Clock } from 'lucide-react'
 
 export default function Alunos() {
     const [view, setView] = useState('list') // list | add | detail (student obj)
@@ -271,6 +271,37 @@ export default function Alunos() {
         }
     }
 
+    const handleResetPassword = async (student) => {
+        const confirmReset = window.confirm(`Deseja resetar a senha de ${student.name} para o CPF original? \n\nO aluno será obrigado a trocar a senha no próximo login.`)
+        if (!confirmReset) return
+
+        const cleanCPF = student.cpf.replace(/\D/g, '')
+        const userId = student.originalData.user_id
+
+        if (!userId) return alert('Este aluno ainda não possui uma conta vinculada.')
+
+        const { error } = await supabase.rpc('reset_student_password', { 
+            target_user_id: userId, 
+            new_password: cleanCPF 
+        })
+
+        if (error) {
+            alert('Erro ao resetar senha: ' + error.message + '\n\nCertifique-se de que a função SQL foi criada no Supabase.')
+        } else {
+            alert('Senha resetada com sucesso para o CPF do aluno!')
+        }
+    }
+
+    const [studySessions, setStudySessions] = useState([])
+    const fetchStudentTimeLogs = async (studentId) => {
+        const { data, error } = await supabase
+            .from('lms_time_logs')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('created_at', { ascending: false })
+        
+        if (data) setStudySessions(data)
+    }
     const handleFileUpload = async (studentId, file, type) => {
         if (!file) return
         const fileExt = file.name.split('.').pop()
@@ -439,6 +470,8 @@ export default function Alunos() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Resetar Senha (CPF)" onClick={() => handleResetPassword(s)}><Key size={16} color="#ef4444" /></button>
+                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Auditoria de Horas (LMS)" onClick={() => { setView(s); fetchStudentTimeLogs(s.originalData.id); }}><Activity size={16} color="#0EA5E9" /></button>
                                         <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Certificado" onClick={() => handleDownloadCertificate(s)}><Award size={16} color="#eab308" /></button>
                                         <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Editar Dados" onClick={() => handleEdit(s)}><FileText size={16} /></button>
                                         <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Visualizar Perfil" onClick={() => setView(s)}><Eye size={16} /></button>
@@ -780,6 +813,60 @@ export default function Alunos() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                             <button className="btn btn-secondary" onClick={() => setShowAuthModal(false)}>Cancelar</button>
                             <button className="btn btn-primary" onClick={handleUnlockDiscount}>Desbloquear</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL DE AUDITORIA DE HORAS (LMS) */}
+            {typeof view === 'object' && studySessions.length > 0 && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+                    <div className="card animate-fade-in" style={{ width: '600px', maxWidth: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0369a1' }}>
+                                    <Activity size={24} /> Auditoria de Presença Online
+                                </h3>
+                                <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Logs de estudo de: <strong>{view.name}</strong></p>
+                            </div>
+                            <button className="btn btn-secondary" onClick={() => { setView('list'); setStudySessions([]); }}>Fechar</button>
+                        </div>
+                        
+                        <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+                            <div style={{ backgroundColor: '#f0f9ff', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #bae6fd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: 600 }}>Carga Horária Acumulada:</span>
+                                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0369a1' }}>
+                                    {(studySessions.reduce((acc, curr) => acc + curr.duration_seconds, 0) / 3600).toFixed(2)} horas
+                                </span>
+                            </div>
+
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', color: '#64748b' }}>
+                                        <th style={{ padding: '0.75rem 0.5rem' }}>Data/Hora</th>
+                                        <th style={{ padding: '0.75rem 0.5rem' }}>Duração (Auditada)</th>
+                                        <th style={{ padding: '0.75rem 0.5rem' }}>Tipo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {studySessions.map((log, idx) => (
+                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '0.75rem 0.5rem' }}>{new Date(log.created_at).toLocaleString('pt-BR')}</td>
+                                            <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{Math.floor(log.duration_seconds / 60)} min {log.duration_seconds % 60}s</td>
+                                            <td style={{ padding: '0.75rem 0.5rem' }}>
+                                                <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: '#f1f5f9' }}>
+                                                    Sessão Ativa (Heartbeat)
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
+                            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.print()}>
+                                <Printer size={18} /> Imprimir Relatório para Auditoria
+                            </button>
                         </div>
                     </div>
                 </div>
