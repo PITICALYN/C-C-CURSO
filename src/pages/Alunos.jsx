@@ -71,8 +71,8 @@ export default function Alunos() {
             const formatted = stdData.map(s => ({
                 id: s.id,
                 num: s.matricula_numero,
-                name: s.full_name,
-                cpf: s.cpf,
+                name: s.full_name || 'Sem Nome',
+                cpf: s.cpf || ' --- ',
                 class: s.classes ? s.classes.name : 'Sem Turma',
                 status: 'Ativo',
                 photo: s.doc_photo_url,
@@ -108,13 +108,63 @@ export default function Alunos() {
         }
     }
 
+    const validateCPF = (cpf) => {
+        cpf = cpf.replace(/[^\d]+/g, '')
+        if (cpf === '' || cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false
+        let add = 0
+        for (let i = 0; i < 9; i++) add += parseInt(cpf.charAt(i)) * (10 - i)
+        let rev = 11 - (add % 11)
+        if (rev === 10 || rev === 11) rev = 0
+        if (rev !== parseInt(cpf.charAt(9))) return false
+        add = 0
+        for (let i = 0; i < 10; i++) add += parseInt(cpf.charAt(i)) * (11 - i)
+        rev = 11 - (add % 11)
+        if (rev === 10 || rev === 11) rev = 0
+        if (rev !== parseInt(cpf.charAt(10))) return false
+        return true
+    }
+
+    const formatCPF = (value) => {
+        return value
+            .replace(/\D/g, '')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+            .replace(/(-\d{2})\d+?$/, '$1')
+    }
+
+    const handleCEPBlur = async () => {
+        const cep = formData.cep.replace(/\D/g, '')
+        if (cep.length !== 8) return
+        
+        try {
+            const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+            const data = await res.json()
+            if (!data.erro) {
+                setFormData(prev => ({
+                    ...prev,
+                    rua: data.logradouro,
+                    bairro: data.bairro,
+                    cidade: data.localidade,
+                    estado: data.uf
+                }))
+            }
+        } catch (error) {
+            console.error('Error fetching CEP:', error)
+        }
+    }
+
     const filteredStudents = students.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.cpf.includes(searchTerm)
+        (s.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (s.cpf || '').includes(searchTerm)
     )
 
     const handleFormChange = async (e) => {
-        const { name, value } = e.target
+        let { name, value } = e.target
+        
+        if (name === 'cpf') value = formatCPF(value)
+        if (name === 'cep') value = value.replace(/\D/g, '').slice(0, 8)
+
         setFormData(prev => ({ ...prev, [name]: value }))
 
         if (name === 'turma_id' && value) {
@@ -132,6 +182,11 @@ export default function Alunos() {
     const handleSubmit = async () => {
         if (!formData.full_name || !formData.cpf) {
             alert('Por favor, preencha pelo menos Nome e CPF.')
+            return
+        }
+
+        if (!validateCPF(formData.cpf)) {
+            alert('CPF Inválido! Por favor, verifique os números digitados.')
             return
         }
 
@@ -527,10 +582,18 @@ export default function Alunos() {
                     <div className="form-group"><label className="form-label">E-mail</label><input type="email" className="form-control" name="email" value={formData.email} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Telefone</label><input type="text" className="form-control" name="phone" value={formData.phone} onChange={handleFormChange} /></div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
-                    <div className="form-group"><label className="form-label">CEP</label><input type="text" className="form-control" name="cep" value={formData.cep} onChange={handleFormChange} /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 3fr 0.8fr', gap: '1.5rem', marginTop: '1rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">CEP</label>
+                        <input type="text" className="form-control" name="cep" value={formData.cep} onChange={handleFormChange} onBlur={handleCEPBlur} placeholder="00000000" />
+                    </div>
                     <div className="form-group"><label className="form-label">Rua/Logradouro</label><input type="text" className="form-control" name="rua" value={formData.rua} onChange={handleFormChange} /></div>
                     <div className="form-group"><label className="form-label">Nº</label><input type="text" className="form-control" name="numero" value={formData.numero} onChange={handleFormChange} /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.5fr', gap: '1.5rem', marginTop: '1rem' }}>
+                    <div className="form-group"><label className="form-label">Bairro</label><input type="text" className="form-control" name="bairro" value={formData.bairro} onChange={handleFormChange} /></div>
+                    <div className="form-group"><label className="form-label">Cidade</label><input type="text" className="form-control" name="cidade" value={formData.cidade} onChange={handleFormChange} /></div>
+                    <div className="form-group"><label className="form-label">UF</label><input type="text" className="form-control" name="estado" value={formData.estado} onChange={handleFormChange} maxLength="2" /></div>
                 </div>
             </div>
 
