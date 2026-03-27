@@ -46,7 +46,8 @@ export default function LMSAdmin() {
         min_theoretical_hours: 0,
         is_published: false,
         instructor_payment_type: 'fixed',
-        instructor_payment_value: 0
+        instructor_payment_value: 0,
+        create_class_container: true
     })
 
     // Estados para FORMULÁRIOS VISUAIS (Substituindo Prompts)
@@ -224,12 +225,29 @@ export default function LMSAdmin() {
             error = err
         } else {
             // Create
-            const { error: err } = await supabase
+            const { create_class_container, ...cleanForm } = courseForm
+            const { data: newCourse, error: err } = await supabase
                 .from('lms_courses')
                 .insert([{
-                    ...courseForm,
+                    ...cleanForm,
                     instructor_payment_value: parseFloat(courseForm.instructor_payment_value) || 0
                 }])
+                .select()
+                .single()
+            
+            // Se pediu para criar container de turma (Início Imediato)
+            if (!err && create_class_container && newCourse) {
+                await supabase.from('classes').insert([{
+                    name: `EAD-${newCourse.title.substring(0, 10)}`,
+                    course_name: newCourse.title,
+                    is_immediate_start: true,
+                    lms_course_id: newCourse.id,
+                    instructor_payment_type: newCourse.instructor_payment_type,
+                    instructor_payment_value: newCourse.instructor_payment_value,
+                    duration: '0',
+                    schedule: 'Acesso Online Perpétuo'
+                }])
+            }
             error = err
         }
         
@@ -443,11 +461,26 @@ export default function LMSAdmin() {
                         />
                     </div>
                 </div>
+                
+                {!selectedCourse && (
+                    <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#ECFDF5', borderRadius: '8px', border: '1px solid #10B981', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <input 
+                            type="checkbox" 
+                            id="create_class_container"
+                            checked={courseForm.create_class_container}
+                            onChange={e => setCourseForm({...courseForm, create_class_container: e.target.checked})}
+                            style={{ width: '1.2rem', height: '1.2rem' }}
+                        />
+                        <label htmlFor="create_class_container" style={{ fontSize: '0.9rem', color: '#065F46', fontWeight: 600, cursor: 'pointer' }}>
+                            Criar automaticamente uma Turma de "Início Imediato" para este curso?
+                        </label>
+                    </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                     <button className="btn btn-secondary" onClick={() => {
                         setSelectedCourse(null)
-                        setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false, instructor_payment_type: 'fixed', instructor_payment_value: 0 })
+                        setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false, instructor_payment_type: 'fixed', instructor_payment_value: 0, create_class_container: true })
                         setView('list')
                     }}>Cancelar</button>
                     <button className="btn btn-primary" onClick={handleSaveCourse}>{selectedCourse ? 'Salvar Alterações' : 'Criar Curso'}</button>
