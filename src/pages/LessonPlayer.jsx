@@ -153,20 +153,30 @@ export default function LessonPlayer() {
             }, { onConflict: ['student_id', 'lesson_id'] })
     }
 
-    // Lógica de cronômetro para tempo mínimo
+    // Lógica de cronômetro para tempo mínimo e Heartbeat de presença
     useEffect(() => {
         if (!lesson) return
 
+        let heartbeatCount = 0
         timerRef.current = setInterval(() => {
             setSecondsWatched(prev => {
                 const next = prev + 1
                 const completed = lesson.min_watch_time_sec > 0 && next >= lesson.min_watch_time_sec
+                
                 if (completed && !isCompleted) {
                     setIsCompleted(true)
                     saveProgress(next, true)
-                } else if (next % 10 === 0) { // Salvar a cada 10 segundos
+                } else if (next % 10 === 0) { // Salvar progresso da aula a cada 10 segundos
                     saveProgress(next, isCompleted)
                 }
+
+                // Heartbeat para Carga Horária (lms_time_logs) - a cada 30 segundos
+                heartbeatCount++
+                if (heartbeatCount >= 30) {
+                    logStudyTime(30)
+                    heartbeatCount = 0
+                }
+
                 return next
             })
         }, 1000)
@@ -174,8 +184,24 @@ export default function LessonPlayer() {
         return () => {
             clearInterval(timerRef.current)
             saveProgress(secondsWatched, isCompleted)
+            // Log do tempo residual ao sair
+            if (heartbeatCount > 5) logStudyTime(heartbeatCount)
         }
     }, [lesson, isCompleted])
+
+    const logStudyTime = async (seconds) => {
+        if (!session?.user?.id || !lessonId) return
+        try {
+            await supabase.from('lms_time_logs').insert([{
+                student_id: session.user.id,
+                course_id: course.id,
+                lesson_id: lessonId,
+                duration_seconds: seconds
+            }])
+        } catch (e) {
+            console.error("Erro ao registrar heartbeat:", e)
+        }
+    }
 
     const formatVideoUrl = (url) => {
         if (!url) return ''

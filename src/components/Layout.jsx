@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import WhatsAppChat from './WhatsAppChat'
 
 export default function Layout() {
     return (
@@ -20,6 +21,7 @@ export default function Layout() {
                     <Outlet />
                 </main>
             </div>
+            <WhatsAppChat />
         </div>
     )
 }

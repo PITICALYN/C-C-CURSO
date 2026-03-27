@@ -28,6 +28,7 @@ export default function Alunos() {
 
     // Eval state
     const [evalData, setEvalData] = useState({ exam_type: 'TEORICA', attempt: 1, grade: '', retraining_hours: 0, date: new Date().toISOString().split('T')[0] })
+    const [totalStudyTime, setTotalStudyTime] = useState(0)
 
     const handleEvalSubmit = async (student_id, class_id) => {
         if (!evalData.grade || !evalData.date) return alert("Preencha a nota e a data.")
@@ -88,6 +89,24 @@ export default function Alunos() {
     useEffect(() => {
         fetchStudents()
     }, [])
+
+    useEffect(() => {
+        if (typeof view === 'object' && view.id) {
+            fetchTotalStudyTime(view.id)
+        }
+    }, [view])
+
+    const fetchTotalStudyTime = async (studentId) => {
+        const { data, error } = await supabase
+            .from('lms_time_logs')
+            .select('duration_seconds')
+            .eq('student_id', studentId)
+        
+        if (data) {
+            const total = data.reduce((acc, curr) => acc + curr.duration_seconds, 0)
+            setTotalStudyTime(total)
+        }
+    }
 
     const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -324,14 +343,17 @@ export default function Alunos() {
 
     const renderList = () => (
         <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Gestão de Alunos</h2>
-                <button className="btn btn-primary" onClick={() => { 
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' }}>Gestão de Alunos</h2>
+                    <p className="text-secondary" style={{ fontSize: '0.875rem' }}>Visualize, edite e matricule novos estudantes no sistema.</p>
+                </div>
+                <button className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} onClick={() => { 
                     resetForm(); 
                     setIsEditing(null);
                     setView('add'); 
                 }}>
-                    <Plus size={20} /> Nova Matrícula
+                    <Plus size={24} /> Matricular Novo Aluno
                 </button>
             </div>
 
@@ -560,6 +582,9 @@ export default function Alunos() {
                             <div>
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{student.name}</h2>
                                 <p className="text-muted">CPF: {student.cpf}</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', color: 'var(--primary)', fontWeight: 600, fontSize: '0.875rem' }}>
+                                    <Clock size={16} /> Tempo de Estudo EAD: {Math.floor(totalStudyTime / 3600)}h {Math.floor((totalStudyTime % 3600) / 60)}min
+                                </div>
                             </div>
                         </div>
                         <div style={{ padding: '0.5rem 1rem', borderRadius: '999px', fontWeight: 600, backgroundColor: statusBadge.bg, color: statusBadge.color }}>{statusBadge.label}</div>

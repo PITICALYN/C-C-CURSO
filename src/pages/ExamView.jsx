@@ -81,58 +81,101 @@ export default function ExamView() {
         // Impedir cliques duplos se já estiver enviando
         if (status === 'result') return
 
-        let correctCount = 0
-        questions.forEach(q => {
-            if (answers[q.id] === q.correct_option_index) correctCount++
-        })
-        
-        const finalScore = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
-        
-        // Regra de Melhor Nota: Mantém a maior entre a atual e a anterior
-        const bestScore = Math.max(finalScore, score)
-        const approved = bestScore >= (quiz?.passing_grade || 70)
-        const newAttempts = attemptsCount + 1
+        try {
+            let correctCount = 0
+            const feedbackMap = {}
 
-        const { error } = await supabase.from('lms_quiz_results').upsert({
-            student_id: session.user.id,
-            quiz_id: quizId,
-            score: bestScore,
-            attempts_count: newAttempts,
-            is_approved: approved
-        }, { onConflict: ['student_id', 'quiz_id'] })
+            questions.forEach(q => {
+                const isCorrect = answers[q.id] === q.correct_option_index
+                if (isCorrect) correctCount++
+                feedbackMap[q.id] = {
+                    is_correct: isCorrect,
+                    user_answer: answers[q.id],
+                    correct_answer: q.correct_option_index
+                }
+            })
+            
+            const finalScore = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
+            
+            // Regra de Melhor Nota: Mantém a maior entre a atual e a anterior
+            const bestScore = Math.max(finalScore, score)
+            const approved = bestScore >= (quiz?.passing_grade || 70)
+            const newAttempts = attemptsCount + 1
 
-        if (!error) {
+            const { error: upsertError } = await supabase.from('lms_quiz_results').upsert({
+                student_id: session.user.id,
+                quiz_id: quizId,
+                score: bestScore,
+                attempts_count: newAttempts,
+                is_approved: approved
+            }, { onConflict: ['student_id', 'quiz_id'] })
+
+            if (upsertError) throw upsertError
+
             setScore(finalScore)
             setAttemptsCount(newAttempts)
             setStatus('result')
             setTimeLeft(null)
+        } catch (error) {
+            console.error('Erro ao enviar prova:', error)
+            alert('Lamentamos o erro ao enviar suas respostas. Por favor, verifique sua conexão e tente novamente. Detalhe: ' + error.message)
         }
     }
 
-    // Cronômetro
+    // Cronômetro e Heartbeat de Estudo
     useEffect(() => {
         let timer = null
-        if (status === 'active' && timeLeft !== null) {
+        let heartbeatCount = 0
+        
+        if (status === 'active') {
             timer = setInterval(() => {
-                setTimeLeft(prev => {
-                    if (prev <= 1) {
-                        clearInterval(timer)
-                        handleSubmit() // Envio automático
-                        return 0
-                    }
-                    
-                    // Alerta de 10%
-                    const totalSec = quiz.time_limit_minutes * 60
-                    if (prev <= totalSec * 0.1 && !showTimeWarning) {
-                        setShowTimeWarning(true)
-                    }
-                    
-                    return prev - 1
-                })
+                // Lógica de Tempo Restante
+                if (timeLeft !== null) {
+                    setTimeLeft(prev => {
+                        if (prev <= 1) {
+                            clearInterval(timer)
+                            handleSubmit() // Envio automático
+                            return 0
+                        }
+                        
+                        // Alerta de 10%
+                        const totalSec = quiz.time_limit_minutes * 60
+                        if (prev <= totalSec * 0.1 && !showTimeWarning) {
+                            setShowTimeWarning(true)
+                        }
+                        
+                        return prev - 1
+                    })
+                }
+
+                // Heartbeat para Carga Horária (lms_time_logs) - a cada 30 segundos
+                heartbeatCount++
+                if (heartbeatCount >= 30) {
+                    logStudyTime(30)
+                    heartbeatCount = 0
+                }
             }, 1000)
         }
-        return () => clearInterval(timer)
+        
+        return () => {
+            clearInterval(timer)
+            if (heartbeatCount > 5) logStudyTime(heartbeatCount)
+        }
     }, [status, timeLeft])
+
+    const logStudyTime = async (seconds) => {
+        if (!session?.user?.id || !quizId) return
+        try {
+            await supabase.from('lms_time_logs').insert([{
+                student_id: session.user.id,
+                course_id: quiz.course_id,
+                quiz_id: quizId,
+                duration_seconds: seconds
+            }])
+        } catch (e) {
+            console.error("Erro ao registrar heartbeat em prova:", e)
+        }
+    }
 
     const formatTime = (seconds) => {
         const m = Math.floor(seconds / 60)
@@ -245,32 +288,89 @@ export default function ExamView() {
             )}
 
             {status === 'result' && (
-                <div className="card text-center" style={{ padding: '3rem' }}>
-                    {score >= quiz.passing_grade ? (
-                        <>
-                            <CheckCircle size={64} style={{ color: '#10b981', margin: '0 auto 1.5rem' }} />
-                            <h2 style={{ color: '#065f46' }}>Parabéns! Você foi aprovado!</h2>
-                        </>
-                    ) : (
-                        <>
-                            <XCircle size={64} style={{ color: '#ef4444', margin: '0 auto 1.5rem' }} />
-                            <h2 style={{ color: '#991b1b' }}>
-                                {quiz.quiz_type === 'final_exam' ? 'Não aprovado na prova final.' : 'Exercício não superado.'}
-                            </h2>
-                        </>
-                    )}
-                    <div style={{ margin: '2rem 0', padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                        <p style={{ fontSize: '1rem', color: '#64748b' }}>Sua nota final:</p>
-                        <p style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{score}%</p>
+                <div className="animate-fade-in">
+                    <div className="card text-center" style={{ padding: '3rem', marginBottom: '2rem' }}>
+                        {score >= quiz.passing_grade ? (
+                            <>
+                                <CheckCircle size={64} style={{ color: '#10b981', margin: '0 auto 1.5rem' }} />
+                                <h2 style={{ color: '#065f46' }}>Parabéns! Você foi aprovado!</h2>
+                            </>
+                        ) : (
+                            <>
+                                <XCircle size={64} style={{ color: '#ef4444', margin: '0 auto 1.5rem' }} />
+                                <h2 style={{ color: '#991b1b' }}>
+                                    {quiz.quiz_type === 'final_exam' ? 'Não aprovado na prova final.' : 'Exercício não superado.'}
+                                </h2>
+                            </>
+                        )}
+                        <div style={{ margin: '2rem 0', padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                            <p style={{ fontSize: '1rem', color: '#64748b' }}>Sua nota nesta tentativa:</p>
+                            <p style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{score}%</p>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                            {score < quiz.passing_grade && attemptsCount < quiz.max_attempts && (
+                                <button className="btn btn-secondary" onClick={handleStartExam}>
+                                    <RefreshCcw size={16} /> Tentar Novamente
+                                </button>
+                            )}
+                            <button className="btn btn-primary" onClick={() => navigate('/meus-cursos')}>
+                                Voltar para Meus Cursos
+                            </button>
+                        </div>
                     </div>
-                    {score < quiz.passing_grade && attemptsCount < quiz.max_attempts && (
-                        <button className="btn btn-secondary" onClick={handleStartExam}>
-                            <RefreshCcw size={16} /> Tentar Novamente
-                        </button>
-                    )}
-                    <button className="btn btn-primary" style={{ marginLeft: '1rem' }} onClick={() => navigate('/meus-cursos')}>
-                        Voltar para Meus Cursos
-                    </button>
+
+                    <div className="card">
+                        <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <CheckCircle size={20} color="var(--primary)" /> Conferência de Gabarito
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            {questions.map((q, idx) => {
+                                const isCorrect = answers[q.id] === q.correct_option_index
+                                return (
+                                    <div key={q.id} style={{ padding: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: isCorrect ? '#f0fdf4' : '#fff1f2' }}>
+                                        <p style={{ fontWeight: 600, marginBottom: '1rem' }}>{idx + 1}. {q.question_text}</p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {q.options.map((opt, oidx) => {
+                                                const optText = typeof opt === 'object' ? opt.text : opt
+                                                const isSelected = answers[q.id] === oidx
+                                                const isCorrectOpt = q.correct_option_index === oidx
+                                                
+                                                let bgColor = 'transparent'
+                                                let borderColor = '#e2e8f0'
+                                                if (isCorrectOpt) {
+                                                    bgColor = '#dcfce7'
+                                                    borderColor = '#22c55e'
+                                                } else if (isSelected && !isCorrect) {
+                                                    bgColor = '#fee2e2'
+                                                    borderColor = '#ef4444'
+                                                }
+
+                                                return (
+                                                    <div key={oidx} style={{ 
+                                                        padding: '0.75rem 1rem', 
+                                                        borderRadius: '8px', 
+                                                        border: `1px solid ${borderColor}`,
+                                                        backgroundColor: bgColor,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.75rem',
+                                                        fontSize: '0.9rem'
+                                                    }}>
+                                                        <div style={{ width: '1.25rem' }}>
+                                                            {isCorrectOpt ? <CheckCircle size={16} color="#22c55e" /> : isSelected ? <XCircle size={16} color="#ef4444" /> : null}
+                                                        </div>
+                                                        <span style={{ fontWeight: (isSelected || isCorrectOpt) ? 600 : 400 }}>{optText}</span>
+                                                        {isCorrectOpt && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#166534', fontWeight: 700 }}>RESPOSTA CORRETA</span>}
+                                                        {isSelected && !isCorrect && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#991b1b', fontWeight: 700 }}>SUA ESCOLHA ANTERIOR</span>}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
                 </div>
             )}
 

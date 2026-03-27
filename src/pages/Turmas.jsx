@@ -25,7 +25,9 @@ export default function Turmas() {
         price_cash: '',
         price_card_10x: '',
         price_installments_3x: '',
-        is_immediate_start: false
+        is_immediate_start: false,
+        instructor_payment_type: 'fixed',
+        instructor_payment_value: 0
     })
     const [lmsCourses, setLmsCourses] = useState([])
 
@@ -86,6 +88,7 @@ export default function Turmas() {
                     lms_course_id, evaluation_pdf_url,
                     price_cash, price_card_10x, price_installments_3x,
                     is_immediate_start,
+                    instructor_payment_type, instructor_payment_value,
                     students ( count )
                 `)
                 .order('created_at', { ascending: false })
@@ -107,7 +110,9 @@ export default function Turmas() {
                 priceCash: c.price_cash,
                 priceCard10x: c.price_card_10x,
                 priceBoleto3x: c.price_installments_3x,
-                isImmediateStart: c.is_immediate_start
+                isImmediateStart: c.is_immediate_start,
+                instructor_payment_type: c.instructor_payment_type,
+                instructor_payment_value: c.instructor_payment_value
             }))
 
             // Reorganizando e Forçando state default p/ Form
@@ -197,7 +202,9 @@ export default function Turmas() {
             price_cash: formData.price_cash ? parseFloat(formData.price_cash) : 0,
             price_card_10x: formData.price_card_10x ? parseFloat(formData.price_card_10x) : 0,
             price_installments_3x: formData.price_installments_3x ? parseFloat(formData.price_installments_3x) : 0,
-            is_immediate_start: formData.is_immediate_start || false
+            is_immediate_start: formData.is_immediate_start || false,
+            instructor_payment_type: formData.instructor_payment_type,
+            instructor_payment_value: parseFloat(formData.instructor_payment_value) || 0
         }
 
         if (isEditing && editingId) {
@@ -219,7 +226,9 @@ export default function Turmas() {
                 setFormData({ 
                     name: '', course_name: '', start_date: '', predicted_end_date: '', schedule: '', duration: '', lms_course_id: '',
                     price_cash: '', price_card_10x: '', price_installments_3x: '',
-                    is_immediate_start: false
+                    is_immediate_start: false,
+                    instructor_payment_type: 'fixed',
+                    instructor_payment_value: 0
                 })
                 fetchClasses()
             }
@@ -238,7 +247,9 @@ export default function Turmas() {
             price_cash: turma.priceCash || '',
             price_card_10x: turma.priceCard10x || '',
             price_installments_3x: turma.priceBoleto3x || '',
-            is_immediate_start: turma.isImmediateStart || false
+            is_immediate_start: turma.isImmediateStart || false,
+            instructor_payment_type: turma.instructor_payment_type || 'fixed',
+            instructor_payment_value: turma.instructor_payment_value || 0
         })
         setIsEditing(true)
         setEditingId(turma.id)
@@ -732,6 +743,31 @@ export default function Turmas() {
                             onKeyDown={(e) => {
                                 if (['e', 'E', '+', '-', '*'].includes(e.key)) e.preventDefault();
                             }}
+                        />
+                    </div>
+                </div>
+
+                <h3 style={{ fontSize: '1.125rem', marginTop: '2rem', marginBottom: '1.5rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Configuração de Pagamento (Instrutor)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">Tipo de Pagamento</label>
+                        <select className="form-control" name="instructor_payment_type" value={formData.instructor_payment_type} onChange={handleFormChange}>
+                            <option value="fixed">Valor Fixo (Salário/Hora)</option>
+                            <option value="split">Rateio de Lucro (50% após despesas)</option>
+                        </select>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Defina como o professor titular desta turma será remunerado.</span>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">
+                            {formData.instructor_payment_type === 'fixed' ? 'Valor do Pagamento (R$)' : 'Percentual de Rateio (%)'}
+                        </label>
+                        <input 
+                            type="number" 
+                            className="form-control" 
+                            name="instructor_payment_value" 
+                            value={formData.instructor_payment_value} 
+                            onChange={handleFormChange}
+                            placeholder={formData.instructor_payment_type === 'fixed' ? "Ex: 1500" : "Ex: 50"}
                         />
                     </div>
                 </div>

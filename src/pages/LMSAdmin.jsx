@@ -44,7 +44,9 @@ export default function LMSAdmin() {
         description: '',
         thumbnail_url: '',
         min_theoretical_hours: 0,
-        is_published: false
+        is_published: false,
+        instructor_payment_type: 'fixed',
+        instructor_payment_value: 0
     })
 
     // Estados para FORMULÁRIOS VISUAIS (Substituindo Prompts)
@@ -214,7 +216,9 @@ export default function LMSAdmin() {
                     title: courseForm.title,
                     description: courseForm.description,
                     thumbnail_url: courseForm.thumbnail_url,
-                    min_theoretical_hours: courseForm.min_theoretical_hours
+                    min_theoretical_hours: courseForm.min_theoretical_hours,
+                    instructor_payment_type: courseForm.instructor_payment_type,
+                    instructor_payment_value: parseFloat(courseForm.instructor_payment_value) || 0
                 })
                 .eq('id', selectedCourse.id)
             error = err
@@ -222,7 +226,10 @@ export default function LMSAdmin() {
             // Create
             const { error: err } = await supabase
                 .from('lms_courses')
-                .insert([courseForm])
+                .insert([{
+                    ...courseForm,
+                    instructor_payment_value: parseFloat(courseForm.instructor_payment_value) || 0
+                }])
             error = err
         }
         
@@ -230,7 +237,7 @@ export default function LMSAdmin() {
             alert('Erro ao salvar curso: ' + error.message)
         } else {
             alert('Curso salvo com sucesso!')
-            setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false })
+            setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false, instructor_payment_type: 'fixed', instructor_payment_value: 0 })
             setSelectedCourse(null)
             setView('list')
             fetchCourses()
@@ -332,7 +339,9 @@ export default function LMSAdmin() {
                                             description: course.description || '',
                                             thumbnail_url: course.thumbnail_url || '',
                                             min_theoretical_hours: course.min_theoretical_hours || 0,
-                                            is_published: course.is_published
+                                            is_published: course.is_published,
+                                            instructor_payment_type: course.instructor_payment_type || 'fixed',
+                                            instructor_payment_value: course.instructor_payment_value || 0
                                         })
                                         setSelectedCourse(course)
                                         setView('add_course')
@@ -408,10 +417,37 @@ export default function LMSAdmin() {
                         />
                     </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600 }}>Tipo de Pagamento (Instrutor EAD)</label>
+                        <select 
+                            className="form-control" 
+                            value={courseForm.instructor_payment_type} 
+                            onChange={e => setCourseForm({...courseForm, instructor_payment_type: e.target.value})}
+                        >
+                            <option value="fixed">Valor Fixo (Salário/Hora)</option>
+                            <option value="split">Rateio de Lucro (50% após despesas)</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 600 }}>
+                            {courseForm.instructor_payment_type === 'fixed' ? 'Valor do Pagamento (R$)' : 'Percentual de Rateio (%)'}
+                        </label>
+                        <input 
+                            type="number" 
+                            className="form-control" 
+                            value={courseForm.instructor_payment_value} 
+                            onChange={e => setCourseForm({...courseForm, instructor_payment_value: e.target.value})}
+                            placeholder={courseForm.instructor_payment_type === 'fixed' ? "Ex: 500" : "Ex: 50"}
+                        />
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                     <button className="btn btn-secondary" onClick={() => {
                         setSelectedCourse(null)
-                        setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false })
+                        setCourseForm({ title: '', description: '', thumbnail_url: '', min_theoretical_hours: 0, is_published: false, instructor_payment_type: 'fixed', instructor_payment_value: 0 })
                         setView('list')
                     }}>Cancelar</button>
                     <button className="btn btn-primary" onClick={handleSaveCourse}>{selectedCourse ? 'Salvar Alterações' : 'Criar Curso'}</button>

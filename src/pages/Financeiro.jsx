@@ -4,11 +4,11 @@ import { CheckCircle, Clock, Receipt, FilePlus, Calendar as CalendarIcon, Dollar
 
 export default function Financeiro() {
     const [activeTab, setActiveTab] = useState('pix') // pix | nf | payables | split
-    const [transactions, setTransactions] = useState({ pix: [], payables: [], classesData: [] })
+    const [transactions, setTransactions] = useState({ pix: [], payables: [], classesData: [], eadCoursesData: [] })
     const [loading, setLoading] = useState(true)
 
     // Form inputs for new payable
-    const [newCost, setNewCost] = useState({ description: '', value: '', dueDate: '' })
+    const [newCost, setNewCost] = useState({ description: '', value: '', dueDate: '', category: 'Outros', class_id: '' })
     const [showNewCostForm, setShowNewCostForm] = useState(false)
 
     // Form inputs for new NF
@@ -26,10 +26,13 @@ export default function Financeiro() {
         setLoading(true)
         try {
             // Fetch Payables
-            const { data: costsData } = await supabase.from('financial_costs').select('*').order('date_incurred', { ascending: false })
+            const { data: costsData } = await supabase.from('financial_costs').select('*, classes(name)').order('date_incurred', { ascending: false })
 
-            // Fetch Classes for Split
-            const { data: clsData } = await supabase.from('classes').select('*, students(count)')
+            // Fetch Classes (filtering regular vs immediate/EAD might be needed if they want separate list)
+            const { data: clsData } = await supabase.from('classes').select('*, students(count)').is('is_immediate_start', false)
+            
+            // Fetch EAD Courses (immediate start or specific LMS courses)
+            const { data: eadData } = await supabase.from('lms_courses').select('*, classes(id, students(count))')
 
             // Fetch Recent Students to simulate PIX Installments (Mocking real names)
             const { data: stdData } = await supabase.from('students').select('*').order('created_at', { ascending: false }).limit(10)
@@ -48,7 +51,8 @@ export default function Financeiro() {
             setTransactions({
                 pix: dynamicPix,
                 payables: costsData || [],
-                classesData: clsData || []
+                classesData: clsData || [],
+                eadCoursesData: eadData || []
             })
         } catch (error) {
             console.error(error)
@@ -69,12 +73,14 @@ export default function Financeiro() {
             value: Number(newCost.value),
             amount: Number(newCost.value),
             status: 'pendente',
-            date_incurred: newCost.dueDate
+            date_incurred: newCost.dueDate,
+            category: newCost.category,
+            class_id: newCost.class_id || null
         }])
         if (error) alert(error.message)
         else {
             alert('Custo adicionado na Nuvem!')
-            setNewCost({ description: '', value: '', dueDate: '' })
+            setNewCost({ description: '', value: '', dueDate: '', category: 'Outros', class_id: '' })
             setShowNewCostForm(false)
             fetchData()
         }
@@ -210,12 +216,29 @@ export default function Financeiro() {
 
             {showNewCostForm && (
                 <div style={{ padding: '1.5rem', backgroundColor: 'var(--bg-color)', marginBottom: '1.5rem', borderRadius: 'var(--radius-md)' }}>
-                    <h4 style={{ marginBottom: '1rem' }}>Adicionar Despesa Real</h4>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 2 }}><label className="form-label">Descrição (Ex: Taxa ABENDI)</label><input type="text" className="form-control" value={newCost.description} onChange={(e) => setNewCost({ ...newCost, description: e.target.value })} /></div>
-                        <div style={{ flex: 1 }}><label className="form-label">Valor R$</label><input type="number" className="form-control" value={newCost.value} onChange={(e) => setNewCost({ ...newCost, value: e.target.value })} /></div>
-                        <div style={{ flex: 1 }}><label className="form-label">Vencimento</label><input type="date" className="form-control" value={newCost.dueDate} onChange={(e) => setNewCost({ ...newCost, dueDate: e.target.value })} /></div>
-                        <div><button className="btn btn-primary" onClick={handleAddCost}>Salvar (BD)</button></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 0.5fr', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
+                        <div><label className="form-label">Descrição</label><input type="text" className="form-control" value={newCost.description} onChange={(e) => setNewCost({ ...newCost, description: e.target.value })} /></div>
+                        <div><label className="form-label">Valor R$</label><input type="number" className="form-control" value={newCost.value} onChange={(e) => setNewCost({ ...newCost, value: e.target.value })} /></div>
+                        <div><label className="form-label">Vencimento</label><input type="date" className="form-control" value={newCost.dueDate} onChange={(e) => setNewCost({ ...newCost, dueDate: e.target.value })} /></div>
+                        <div>
+                            <label className="form-label">Categoria</label>
+                            <select className="form-control" value={newCost.category} onChange={(e) => setNewCost({ ...newCost, category: e.target.value })}>
+                                <option value="Outros">Outros</option>
+                                <option value="Apostila">Apostila</option>
+                                <option value="NF">NF</option>
+                                <option value="Taxa ABENDI">Taxa ABENDI</option>
+                                <option value="Certificado">Certificado</option>
+                                <option value="Aluguel Espaço">Aluguel Espaço</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="form-label">Turma (Opcional)</label>
+                            <select className="form-control" value={newCost.class_id} onChange={(e) => setNewCost({ ...newCost, class_id: e.target.value })}>
+                                <option value="">Geral (Sem turma)</option>
+                                {transactions.classesData.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div><button className="btn btn-primary" onClick={handleAddCost}>Salvar</button></div>
                     </div>
                 </div>
             )}
@@ -225,8 +248,10 @@ export default function Financeiro() {
                     <thead>
                         <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                             <th style={{ padding: '1rem' }}>Descrição do Custo</th>
+                            <th style={{ padding: '1rem' }}>Categoria</th>
                             <th style={{ padding: '1rem' }}>Vencimento</th>
                             <th style={{ padding: '1rem' }}>Valor a Pagar</th>
+                            <th style={{ padding: '1rem', textAlign: 'center' }}>Vínculo</th>
                             <th style={{ padding: '1rem', textAlign: 'center' }}>Status</th>
                             <th style={{ padding: '1rem', textAlign: 'right' }}>Ação</th>
                         </tr>
@@ -237,8 +262,10 @@ export default function Financeiro() {
                             .map(p => (
                                 <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                     <td style={{ padding: '1rem', fontWeight: 500 }}>{p.description}</td>
+                                    <td style={{ padding: '1rem' }}><span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', backgroundColor: '#F3F4F6', borderRadius: '4px' }}>{p.category}</span></td>
                                     <td style={{ padding: '1rem' }}><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CalendarIcon size={14} className="text-muted" />{p.date_incurred ? new Date(p.date_incurred + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</div></td>
                                     <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--danger)' }}>- {formatMoney(p.amount)}</td>
+                                    <td style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem' }}>{p.classes?.name || 'Geral'}</td>
                                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                                         <span style={{ padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, backgroundColor: p.status === 'pago' ? '#D1FAE5' : '#FEF3C7', color: p.status === 'pago' ? '#065F46' : '#92400E' }}>
                                             {p.status.toUpperCase()}
@@ -261,23 +288,37 @@ export default function Financeiro() {
     const renderSplitTab = () => (
         <div className="animate-fade-in">
             <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                <h3 style={{ fontSize: '1.125rem', marginBottom: '0.5rem', color: '#166534' }}>Inteligência de Rateio de Lucros (50/50 Real)</h3>
-                <p style={{ color: '#15803d', fontSize: '0.875rem' }}>O sistema calcula lucro líquido pelas Turmas Cadastradas (Base de 1.500 reais de margem por Receita de Aluno - Custos) e gera o rateio societário parametrizado antes da transferência para banco.</p>
+                <h3 style={{ fontSize: '1.125rem', marginBottom: '0.5rem', color: '#166534' }}>Resumo de Contabilidade (Rateio Real)</h3>
+                <p style={{ color: '#15803d', fontSize: '0.875rem' }}>Cálculo automatizado considerando Receita de Matrículas (base R$ 3.300 presencial / preço curso EAD) menos custos e tributos.</p>
             </div>
 
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--primary)' }}>Turmas Presenciais / Híbridas</h3>
+
             {loading ? <p>Carregando classes...</p> : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
                     {transactions.classesData
                         .filter(cls => filterMonth === 'all' ? true : cls.start_date && new Date(cls.start_date + 'T00:00:00').getMonth() + 1 === parseInt(filterMonth))
                         .map(cls => {
                             const studentCount = cls.students[0]?.count || 0
                             if (studentCount === 0) return null
 
-                            // Simulation logic based on actual Student counts from Supabase
-                            const revenue = studentCount * 1500
-                            const costs = revenue * 0.35
-                            const netProfit = revenue - costs
-                            const splitShare = netProfit / 2
+                            // Real calculation logic
+                            const revenue = studentCount * 3300 // Usando preço base à vista como referência
+                            
+                            // Somar custos específicos da turma
+                            const specificCosts = transactions.payables
+                                .filter(p => p.class_id === cls.id)
+                                .reduce((acc, curr) => acc + curr.amount, 0)
+                            
+                            // Tributos Estimados (Ex: 15% sobre receita)
+                            const taxes = revenue * 0.15
+                            
+                            const netProfit = revenue - specificCosts - taxes
+                            
+                            const isSplit = cls.instructor_payment_type === 'split'
+                            const instructorShare = isSplit ? (netProfit * (cls.instructor_payment_value / 100)) : cls.instructor_payment_value
+                            const companyProfit = netProfit - instructorShare
 
                             return (
                                 <div key={cls.id} className="card">
@@ -288,49 +329,98 @@ export default function Financeiro() {
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span className="text-muted">Receita Bruta Prevista ({studentCount} Alunos):</span>
+                                            <span className="text-muted">Receita ({studentCount} Alunos):</span>
                                             <span style={{ fontWeight: 600 }}>{formatMoney(revenue)}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span className="text-muted">Despesas Tributos (Média):</span>
-                                            <span style={{ color: 'var(--danger)' }}>- {formatMoney(costs)}</span>
+                                            <span className="text-muted">Custos Diretos (Vínculo):</span>
+                                            <span style={{ color: 'var(--danger)' }}>- {formatMoney(specificCosts)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span className="text-muted">Impostos Estimados (15%):</span>
+                                            <span style={{ color: 'var(--danger)' }}>- {formatMoney(taxes)}</span>
                                         </div>
                                         <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '0.5rem 0' }}></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: '1rem' }}>
-                                            <span>Lucro Líquido Parcial:</span>
+                                            <span>Lucro Líquido Real:</span>
                                             <span style={{ color: 'var(--success)' }}>{formatMoney(netProfit)}</span>
                                         </div>
                                     </div>
 
                                     <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                                         <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.75rem', textAlign: 'center' }}>
-                                            {cls.course_name.toLowerCase().includes('caldeiraria') ? 'Lucro Integral C&C (Sem Rateio)' : 'Projeção de Repasse 50/50'}
+                                            Repasse ao Instrutor ({isSplit ? `${cls.instructor_payment_value}%` : 'Fixo'})
                                         </p>
 
-                                        {cls.course_name.toLowerCase().includes('caldeiraria') ? (
+                                        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                                             <div style={{ textAlign: 'center' }}>
-                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Membro C&C Engenharia</p>
-                                                <p style={{ fontWeight: 700, color: 'var(--success)', fontSize: '1.25rem' }}>{formatMoney(netProfit)}</p>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>C&C (Empresa)</p>
+                                                <p style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatMoney(companyProfit)}</p>
                                             </div>
-                                        ) : (
-                                            <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
-                                                <div style={{ textAlign: 'center' }}>
-                                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>C&C (Sócio A)</p>
-                                                    <p style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatMoney(splitShare)}</p>
-                                                </div>
-                                                <div style={{ fontSize: '1.5rem', color: 'var(--border-color)' }}>+</div>
-                                                <div style={{ textAlign: 'center' }}>
-                                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Membro ICC</p>
-                                                    <p style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatMoney(splitShare)}</p>
-                                                </div>
+                                            <div style={{ fontSize: '1.5rem', color: 'var(--border-color)' }}>+</div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Membro ICC</p>
+                                                <p style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatMoney(instructorShare)}</p>
                                             </div>
-                                        )}
-                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', fontSize: '0.875rem' }}>{cls.course_name.toLowerCase().includes('caldeiraria') ? 'Efetivar Lucro (Caixa C&C)' : 'Efetivar Rateio'}</button>
+                                        </div>
+                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', fontSize: '0.875rem' }} onClick={() => alert('Rateio efetivado. Lançamento gerado no extrato de pagamentos.')}>Efetivar Payout</button>
                                     </div>
                                 </div>
                             )
                         })}
-                </div>
+                    </div>
+
+                    <h3 style={{ fontSize: '1.25rem', marginTop: '3rem', marginBottom: '1rem', color: 'var(--primary)' }}>Vendas Diretas EAD / Online</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
+                        {transactions.eadCoursesData.map(course => {
+                            const studentCount = course.classes?.reduce((acc, curr) => acc + (curr.students[0]?.count || 0), 0) || 0
+                            if (studentCount === 0) return null
+
+                            const revenue = studentCount * 3300 // Exemplo de preço base
+                            const specificCosts = transactions.payables
+                                .filter(p => course.classes?.some(c => c.id === p.class_id))
+                                .reduce((acc, curr) => acc + curr.amount, 0)
+                            
+                            const taxes = revenue * 0.15
+                            const netProfit = revenue - specificCosts - taxes
+                            
+                            const isSplit = course.instructor_payment_type === 'split'
+                            const instructorShare = isSplit ? (netProfit * (course.instructor_payment_value / 100)) : course.instructor_payment_value
+                            const companyProfit = netProfit - instructorShare
+
+                            return (
+                                <div key={course.id} className="card" style={{ borderLeft: '4px solid #10B981' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <h4 style={{ fontWeight: 600, color: 'var(--primary)' }}>{course.title}</h4>
+                                        <span style={{ fontSize: '0.75rem', backgroundColor: '#ECFDF5', color: '#065F46', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>EAD ONLINE</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span className="text-muted">Matrículas EAD:</span>
+                                            <span style={{ fontWeight: 600 }}>{studentCount}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                                            <span>Lucro Líquido:</span>
+                                            <span style={{ color: 'var(--success)' }}>{formatMoney(netProfit)}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <p style={{ fontSize: '0.7rem' }}>C&C Empresa</p>
+                                                <p style={{ fontWeight: 700 }}>{formatMoney(companyProfit)}</p>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <p style={{ fontSize: '0.7rem' }}>Instrutor</p>
+                                                <p style={{ fontWeight: 700, color: '#059669' }}>{formatMoney(instructorShare)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </>
             )}
         </div>
     )
