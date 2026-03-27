@@ -118,9 +118,13 @@ export default function Alunos() {
         setFormData(prev => ({ ...prev, [name]: value }))
 
         if (name === 'turma_id' && value) {
-            const { data } = await supabase.from('classes').select('course_value').eq('id', value).single()
-            if (data && data.course_value) {
-                setFormData(prev => ({ ...prev, base_value: data.course_value }))
+            const { data } = await supabase.from('classes').select('course_value, lms_course_id').eq('id', value).single()
+            if (data) {
+                setFormData(prev => ({ 
+                    ...prev, 
+                    base_value: data.course_value || prev.base_value,
+                    has_lms_access: !!data.lms_course_id 
+                }))
             }
         }
     }
@@ -149,7 +153,8 @@ export default function Alunos() {
             base_value: formData.base_value ? parseFloat(formData.base_value) : 0,
             discount_value: formData.discount_value && discountUnlocked ? parseFloat(formData.discount_value) : 0,
             manual_signed: formData.manual_signed,
-            payment_method: formData.payment_method
+            payment_method: formData.payment_method,
+            has_lms_access: formData.has_lms_access
         }
 
         let result;
@@ -176,7 +181,8 @@ export default function Alunos() {
             cep: '', rua: '', numero: '', bairro: '', cidade: '', estado: '', turma_id: '',
             how_knew: 'Amigo', how_knew_other: '',
             base_value: '', discount_value: '', manual_signed: false,
-            payment_method: 'À Vista (PIX/Dinheiro)'
+            payment_method: 'À Vista (PIX/Dinheiro)',
+            has_lms_access: false
         })
         setIsEditing(null)
         setDiscountUnlocked(false)

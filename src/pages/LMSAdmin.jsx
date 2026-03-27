@@ -238,7 +238,7 @@ export default function LMSAdmin() {
             // Se pediu para criar container de turma (Início Imediato)
             if (!err && create_class_container && newCourse) {
                 await supabase.from('classes').insert([{
-                    name: `EAD-${newCourse.title.substring(0, 10)}`,
+                    name: `Auto: ${newCourse.title}`,
                     course_name: newCourse.title,
                     is_immediate_start: true,
                     lms_course_id: newCourse.id,
