@@ -19,7 +19,7 @@ export default function Turmas() {
 
     const [formData, setFormData] = useState({
         name: '',
-        course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)',
+        course_name: '',
         start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136',
         lms_course_id: '',
         price_cash: '',
@@ -652,12 +652,18 @@ export default function Turmas() {
                             placeholder="Digite ou selecione o curso"
                         />
                         <datalist id="course-options">
-                            <option value="Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)" />
-                            <option value="Controle Dimensional – Topografia (CD-TO)" />
-                            <option value="Controle Dimensional - Mecânica- (CD-CM)" />
-                            <option value="TREINAMENTO Dimensional – Caldeiraria e Tubulação – (CD-CL)" />
-                            <option value="Treinamento Dimensional – Topografia (CD-TO)" />
-                            <option value="Treinamento Dimensional - Mecânica- (CD-CM)" />
+                            {/* Sugestões dinâmicas baseadas em turmas já criadas */}
+                            {[...new Set(classes.map(c => c.course))].filter(Boolean).map((course, idx) => (
+                                <option key={idx} value={course} />
+                            ))}
+                            {/* Padrões fixos caso o banco esteja vazio */}
+                            {classes.length === 0 && (
+                                <>
+                                    <option value="Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)" />
+                                    <option value="Controle Dimensional – Topografia (CD-TO)" />
+                                    <option value="Controle Dimensional - Mecânica- (CD-CM)" />
+                                </>
+                            )}
                         </datalist>
                     </div>
                     <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem' }}>
