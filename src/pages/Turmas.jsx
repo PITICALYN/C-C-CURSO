@@ -82,7 +82,26 @@ export default function Turmas() {
 
     const generateNextClassName = (existingClasses) => {
         const yearSuffix = new Date().getFullYear().toString().slice(-2) // Ex: "26" p/ 2026
-        const nextNumber = (existingClasses.length + 1).toString().padStart(2, '0') // Ex: "01", "02"
+        
+        // Filtrar apenas as turmas que seguem o padrão TXX/YY para o ano atual
+        const currentYearClasses = existingClasses.filter(c => {
+            const parts = c.name.split('/')
+            return parts.length === 2 && parts[1] === yearSuffix && parts[0].startsWith('T')
+        })
+
+        if (currentYearClasses.length === 0) {
+            return `T01/${yearSuffix}`
+        }
+
+        // Extrair os números das turmas e encontrar o maior
+        const numbers = currentYearClasses.map(c => {
+            const numStr = c.name.split('/')[0].substring(1) // Remove o 'T'
+            return parseInt(numStr, 10)
+        }).filter(n => !isNaN(n))
+
+        const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0
+        const nextNumber = (maxNumber + 1).toString().padStart(2, '0')
+        
         return `T${nextNumber}/${yearSuffix}`
     }
 
@@ -124,9 +143,9 @@ export default function Turmas() {
                 instructor_payment_value: c.instructor_payment_value
             }))
 
-            // Reorganizando e Forçando state default p/ Form
+            // Reorganizando
             setClasses(formatted)
-            setFormData(prev => ({ ...prev, name: generateNextClassName(formatted) }))
+            // setFormData(prev => ({ ...prev, name: generateNextClassName(formatted) })) // Removido para evitar sobrescritas durante edição
         } catch (error) {
             console.error('Error fetching classes:', error)
         } finally {
@@ -174,6 +193,15 @@ export default function Turmas() {
         if (!formData.name || !formData.course_name) {
             alert('Por favor, preencha o Nome e Curso.')
             return
+        }
+
+        // Verificar se já existe uma turma com o mesmo nome (apenas se for criação nova)
+        if (!isEditing) {
+            const duplicate = classes.find(c => c.name.trim().toLowerCase() === formData.name.trim().toLowerCase())
+            if (duplicate) {
+                const proceed = window.confirm(`Já existe uma turma cadastrada com o nome "${formData.name}".\nDeseja continuar mesmo assim?`)
+                if (!proceed) return
+            }
         }
 
         // Trava para valores negativos
@@ -458,7 +486,7 @@ export default function Turmas() {
                     <button className={`btn ${showPast ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setShowPast(!showPast)}>
                         {showPast ? 'Ver Apenas Ativas' : 'Ver Todas (Incluindo Passadas)'}
                     </button>
-                    <button className="btn btn-primary" onClick={() => setView('add')}>
+                    <button className="btn btn-primary" onClick={handleNewClass}>
                         <BookOpen size={16} /> Nova Turma
                     </button>
                 </div>
