@@ -64,11 +64,11 @@ export default function Turmas() {
     useEffect(() => {
         const course_name = formData.course_name || '';
         if (course_name.includes('(CD-CL)')) {
-            setFormData(prev => ({ ...prev, duration: '136' }));
+            setFormData(prev => ({ ...prev, duration: '136', schedule: 'Seg a Sex 19h as 21h' }));
         } else if (course_name.includes('(CD-TO)')) {
-            setFormData(prev => ({ ...prev, duration: '121' }));
+            setFormData(prev => ({ ...prev, duration: '121', schedule: 'Seg a Sex 20h as 22h' }));
         } else if (course_name.includes('(CD-CM)')) {
-            setFormData(prev => ({ ...prev, duration: '146' }));
+            setFormData(prev => ({ ...prev, duration: '146', schedule: 'Seg a Sex 19h as 21h' }));
         }
 
         // Auto-vinculo inteligente: Se o nome do curso bater com um curso EAD existente, selecionar automaticamente
@@ -294,7 +294,7 @@ export default function Turmas() {
         setFormData({ 
             name: generateNextClassName(classes), 
             course_name: 'Controle Dimensional – Caldeiraria e Tubulação – (CD-CL)', 
-            start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 18h as 22h', duration: '136', 
+            start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 19h as 21h', duration: '136', 
             lms_course_id: '',
             price_cash: '', price_card_10x: '', price_installments_3x: '',
             is_immediate_start: false
@@ -748,6 +748,8 @@ export default function Turmas() {
                         <label className="form-label">Horários Base</label>
                         <select className="form-control" name="schedule" value={formData.schedule} onChange={handleFormChange}>
                             <option value="">Selecione (Ou digite se for Treinamento)</option>
+                            <option value="Seg a Sex 19h as 21h">Seg a Sex 19h às 21h</option>
+                            <option value="Seg a Sex 20h as 22h">Seg a Sex 20h às 22h</option>
                             <option value="Seg a Sex 18h as 22h">Seg a Sex 18h às 22h</option>
                             <option value="Sabado 08h as 17h">Sábado 08h às 17h (Integral)</option>
                         </select>
