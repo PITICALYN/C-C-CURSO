@@ -23,9 +23,48 @@ export default function Professor() {
     const fetchClasses = async () => {
         setLoading(true)
         try {
-            const { data, error } = await supabase.from('classes').select('*').order('created_at', { ascending: false })
-            if (error) throw error
-            setClasses(data || [])
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            // Buscar perfil para saber o role
+            const { data: profile } = await supabase
+                .from('users')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+
+            const isAdminOrCoord = profile?.role === 'admin' || profile?.role === 'coordenador'
+
+            if (isAdminOrCoord) {
+                // Admin e coordenadores veem todas as turmas
+                const { data, error } = await supabase
+                    .from('classes')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                if (error) throw error
+                setClasses(data || [])
+            } else {
+                // Instrutor vê apenas as turmas vinculadas a ele
+                const { data: links, error: linksError } = await supabase
+                    .from('class_instructors')
+                    .select('class_id')
+                    .eq('user_id', user.id)
+                if (linksError) throw linksError
+
+                const classIds = links?.map(l => l.class_id) || []
+
+                if (classIds.length === 0) {
+                    setClasses([])
+                } else {
+                    const { data, error } = await supabase
+                        .from('classes')
+                        .select('*')
+                        .in('id', classIds)
+                        .order('created_at', { ascending: false })
+                    if (error) throw error
+                    setClasses(data || [])
+                }
+            }
         } catch (error) {
             console.error('Error fetching classes for professor:', error)
         } finally {
