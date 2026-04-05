@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight, FileText, Trophy, Video } from 'lucide-react'
+import { ChevronLeft, Lock, CheckCircle, AlertTriangle, Clock, ChevronRight, FileText, Trophy, Video, Maximize2, Minimize2 } from 'lucide-react'
 
 export default function LessonPlayer() {
     const { courseId, lessonId } = useParams()
@@ -22,6 +22,8 @@ export default function LessonPlayer() {
     const [loading, setLoading] = useState(true)
     
     const timerRef = useRef(null)
+    const pdfContainerRef = useRef(null)
+    const [isPdfFullscreen, setIsPdfFullscreen] = useState(false)
 
     // ANTI-FRAUDE: Bloqueios
     useEffect(() => {
@@ -39,6 +41,37 @@ export default function LessonPlayer() {
             document.removeEventListener('paste', preventDefault)
         }
     }, [])
+
+    // Detectar saída do fullscreen via tecla ESC ou botão nativo do browser
+    useEffect(() => {
+        const handleFsChange = () => {
+            const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)
+            setIsPdfFullscreen(isFs)
+        }
+        document.addEventListener('fullscreenchange', handleFsChange)
+        document.addEventListener('webkitfullscreenchange', handleFsChange)
+        document.addEventListener('mozfullscreenchange', handleFsChange)
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFsChange)
+            document.removeEventListener('webkitfullscreenchange', handleFsChange)
+            document.removeEventListener('mozfullscreenchange', handleFsChange)
+        }
+    }, [])
+
+    const togglePdfFullscreen = () => {
+        const el = pdfContainerRef.current
+        if (!el) return
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)
+        if (!isFs) {
+            if (el.requestFullscreen) el.requestFullscreen()
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen() // Safari/iOS
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen()       // Firefox
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen()
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+            else if (document.mozCancelFullScreen) document.mozCancelFullScreen()
+        }
+    }
 
     const fetchData = async () => {
         if (!session?.user?.id) return
@@ -241,11 +274,49 @@ export default function LessonPlayer() {
                             allowFullScreen
                         ></iframe>
                     ) : lesson.pdf_url ? (
-                        <iframe 
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', backgroundColor: 'white' }}
-                            src={lesson.pdf_url}
-                            title="Documento da Aula"
-                        ></iframe>
+                        <div
+                            ref={pdfContainerRef}
+                            style={{
+                                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                backgroundColor: 'white',
+                                // Quando fullscreen, o browser cuida do tamanho
+                            }}
+                        >
+                            <iframe 
+                                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                                src={lesson.pdf_url}
+                                title="Documento da Aula"
+                            ></iframe>
+                            {/* Botão de Tela Cheia — multiplataforma */}
+                            <button
+                                onClick={togglePdfFullscreen}
+                                title={isPdfFullscreen ? 'Sair da Tela Cheia' : 'Expandir para Tela Cheia'}
+                                style={{
+                                    position: 'absolute',
+                                    top: '0.75rem',
+                                    right: '0.75rem',
+                                    zIndex: 10,
+                                    background: 'rgba(15,23,42,0.85)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '8px',
+                                    color: 'white',
+                                    padding: '0.45rem 0.75rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    backdropFilter: 'blur(4px)',
+                                    transition: 'background 0.2s',
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(30,41,59,0.95)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(15,23,42,0.85)'}
+                            >
+                                {isPdfFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                                {isPdfFullscreen ? 'Reduzir' : 'Tela Cheia'}
+                            </button>
+                        </div>
                     ) : (
                         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
                             <Video size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
