@@ -156,22 +156,23 @@ export default function Dashboard() {
             const totalRevenue = (studentsData?.length || 0) * 1500 // Ex: 1500 per student avg
             const totalCosts = activePayables.reduce((acc, curr) => acc + (curr.amount || 0), 0)
 
+            // Filter payables to only show upcoming / pending in dashboard list
+            const pendingCosts = activePayables.filter(p => p.status !== 'pago').slice(0, 5)
+            setPayables(pendingCosts)
+
+            const initialPixList = [
+                { id: 1, student: 'João Guilherme Silva', amount: 1500, date: '2026-10-10' },
+                { id: 2, student: 'Maria Oliveira Gomes', amount: 1500, date: '2026-10-15' }
+            ]
+            setPixList(initialPixList)
+
             setMetrics({
-                pendingPix: 2, // Mock notification
+                pendingPix: initialPixList.length,
                 pendingInvoices: 0,
                 totalRevenue,
                 totalCosts,
                 netProfit: totalRevenue - totalCosts
             })
-
-            // Filter payables to only show upcoming / pending in dashboard list
-            const pendingCosts = activePayables.filter(p => p.status !== 'pago').slice(0, 5)
-            setPayables(pendingCosts)
-
-            setPixList([
-                { id: 1, student: 'João Guilherme Silva', amount: 1500, date: '2026-10-10' },
-                { id: 2, student: 'Maria Oliveira Gomes', amount: 1500, date: '2026-10-15' }
-            ])
 
         } catch (error) {
             console.error(error)
@@ -239,11 +240,22 @@ export default function Dashboard() {
                             <div style={{ width: '100%', height: 250 }}>
                                 {courseRanking.year.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={courseRanking.year} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                            <XAxis type="number" hide />
-                                            <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-                                            <ChartTooltip cursor={{ fill: 'transparent' }} />
-                                            <Bar dataKey="count" fill="var(--primary)" barSize={20} radius={[0, 4, 4, 0]}>
+                                        <BarChart data={courseRanking.year} layout="vertical" margin={{ top: 5, right: 40, left: 20, bottom: 5 }}>
+                                            <XAxis
+                                                type="number"
+                                                allowDecimals={false}
+                                                tick={{ fontSize: 11, fill: '#64748b' }}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tickFormatter={(v) => `${v} aluno${v !== 1 ? 's' : ''}`}
+                                            />
+                                            <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                            <ChartTooltip
+                                                cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                formatter={(value) => [`${value} aluno${value !== 1 ? 's' : ''}`, 'Matrículas']}
+                                                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }}
+                                            />
+                                            <Bar dataKey="count" barSize={18} radius={[0, 6, 6, 0]} label={{ position: 'right', fontSize: 11, fill: '#475569', formatter: (v) => v }}>
                                                 {courseRanking.year.map((entry, index) => (
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                 ))}
@@ -367,10 +379,21 @@ export default function Dashboard() {
                 <div className="card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h3 style={{ fontSize: '1.125rem' }}>Verificação de PIX Parcelado</h3>
+                        {pixList.length === 0 && (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '999px', backgroundColor: '#D1FAE5', color: '#065F46' }}>
+                                ✓ Tudo verificado
+                            </span>
+                        )}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {pixList.map(pix => (
-                            <div key={pix.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                        {pixList.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#10b981' }}>
+                                <CheckCircle size={40} style={{ margin: '0 auto 0.75rem' }} />
+                                <p style={{ fontWeight: 600 }}>Nenhum PIX pendente de verificação!</p>
+                                <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>Todos os pagamentos parcelados foram conferidos.</p>
+                            </div>
+                        ) : pixList.map(pix => (
+                            <div key={pix.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', transition: 'all 0.2s' }}>
                                 <div>
                                     <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{pix.student}</p>
                                     <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Data informada: {new Date(pix.date).toLocaleDateString('pt-BR')}</p>
@@ -378,11 +401,17 @@ export default function Dashboard() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                     <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatMoney(pix.amount)}</p>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button className="btn" style={{ padding: '0.5rem', backgroundColor: '#FEF3C7', color: '#92400E' }} title="Aguardando checagem">
-                                            <Clock size={18} />
-                                        </button>
-                                        <button className="btn" style={{ padding: '0.5rem', backgroundColor: '#D1FAE5', color: '#065F46' }} title="Confirmar Recebimento">
-                                            <CheckCircle size={18} />
+                                        <button
+                                            className="btn"
+                                            style={{ padding: '0.5rem 0.75rem', backgroundColor: '#D1FAE5', color: '#065F46', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px' }}
+                                            title="Confirmar Recebimento"
+                                            onClick={() => {
+                                                const updated = pixList.filter(p => p.id !== pix.id)
+                                                setPixList(updated)
+                                                setMetrics(prev => ({ ...prev, pendingPix: updated.length }))
+                                            }}
+                                        >
+                                            <CheckCircle size={16} /> Confirmar
                                         </button>
                                     </div>
                                 </div>

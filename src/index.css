@@ -255,56 +255,70 @@ textarea {
 /* Responsive Rules */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 80px;
-    }
-    .sidebar span, .sidebar .logo-text, .sidebar img {
-        display: none;
-    }
-    .sidebar a {
-        justify-content: center;
-        padding: 1rem;
+        width: 220px;
     }
 }
 
+/* ─── Mobile: Drawer lateral ─── */
 @media (max-width: 768px) {
-    .app-layout {
-        flex-direction: column;
+    /* Botão hamburger visível */
+    .sidebar-hamburger {
+        display: flex !important;
     }
+
+    /* Sidebar some e vira drawer */
     .sidebar {
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        width: 270px;
+        z-index: 1200;
+        transform: translateX(-100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+    }
+
+    /* Sidebar aberta */
+    .sidebar.sidebar-open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+    }
+
+    /* Overlay visível quando sidebar aberta */
+    .sidebar-open ~ * .sidebar-overlay,
+    .sidebar-overlay {
+        display: block !important;
+    }
+
+    /* Botão fechar (X) dentro da sidebar */
+    .sidebar-close-btn {
+        display: flex !important;
+    }
+
+    /* Layout volta a ser coluna, mas sem sidebar estática */
+    .app-layout {
         flex-direction: row;
-        overflow-x: auto;
-        padding: 0.5rem;
     }
-    .sidebar div:first-child {
-        display: none;
-    }
-    nav {
-        flex-direction: row !important;
-        padding: 0.5rem !important;
-        gap: 0.5rem !important;
-    }
-    nav a {
-        padding: 0.5rem !important;
-        min-width: max-content;
-    }
+
     .main-content {
         width: 100%;
+        padding-top: 3.5rem; /* espaço para o botão hamburger */
     }
+
     .topbar {
-        padding: 0 1rem;
+        padding: 0 1rem 0 4rem; /* espaço esquerdo pro hamburger */
     }
+
     .content-area {
         padding: 1rem;
     }
+
     .card {
         padding: 1rem;
     }
-    
-    /* Grid adjustments for mobile */
+
+    /* Grid ajustes mobile */
     .grid-2, .grid-3 {
         grid-template-columns: 1fr !important;
     }

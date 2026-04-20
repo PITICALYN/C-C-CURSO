@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users as UsersIcon, GraduationCap, DollarSign, LogOut, BookOpen, ShieldCheck, Settings, Video, PlayCircle } from 'lucide-react'
+import { NavLink, useLocation } from 'react-router-dom'
+import { LayoutDashboard, Users as UsersIcon, GraduationCap, DollarSign, LogOut, BookOpen, ShieldCheck, Settings, Video, PlayCircle, Menu, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Sidebar() {
     const [userRole, setUserRole] = useState(null)
+    const [mobileOpen, setMobileOpen] = useState(false)
+    const location = useLocation()
+
+    // Fecha o menu ao trocar de rota no mobile
+    useEffect(() => {
+        setMobileOpen(false)
+    }, [location.pathname])
 
     useEffect(() => {
         const fetchRole = async () => {
@@ -32,10 +39,56 @@ export default function Sidebar() {
     }
 
     return (
-        <aside className="sidebar">
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                <img src="/assets/logo.png" alt="C&C Engenharia Logo" style={{ maxWidth: '140px', height: 'auto', objectFit: 'contain' }} />
-            </div>
+        <>
+            {/* Botão Hamburguer - Mobile */}
+            <button
+                onClick={() => setMobileOpen(true)}
+                style={{
+                    display: 'none',
+                    position: 'fixed',
+                    top: '1rem',
+                    left: '1rem',
+                    zIndex: 1100,
+                    padding: '0.5rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'white',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+                className="sidebar-hamburger"
+                aria-label="Abrir menu"
+            >
+                <Menu size={22} color="var(--primary)" />
+            </button>
+
+            {/* Overlay Mobile */}
+            {mobileOpen && (
+                <div
+                    onClick={() => setMobileOpen(false)}
+                    style={{
+                        position: 'fixed', inset: 0,
+                        backgroundColor: 'rgba(0,0,0,0.45)',
+                        zIndex: 1150,
+                        display: 'none'
+                    }}
+                    className="sidebar-overlay"
+                />
+            )}
+
+            <aside className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
+                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <img src="/assets/logo.png" alt="C&C Engenharia Logo" style={{ maxWidth: '130px', height: 'auto', objectFit: 'contain' }} />
+                    {/* Botão fechar no mobile */}
+                    <button
+                        onClick={() => setMobileOpen(false)}
+                        className="sidebar-close-btn"
+                        style={{ display: 'none', padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        aria-label="Fechar menu"
+                    >
+                        <X size={22} color="var(--text-secondary)" />
+                    </button>
+                </div>
 
             <nav style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
                 <NavLink
@@ -189,6 +242,7 @@ export default function Sidebar() {
                     Sair do Sistema
                 </button>
             </div>
-        </aside>
+            </aside>
+        </>
     )
 }
