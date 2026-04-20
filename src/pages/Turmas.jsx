@@ -378,7 +378,10 @@ export default function Turmas() {
             start_date: '', predicted_end_date: '', schedule: 'Seg a Sex 19h as 21h', duration: '136', 
             lms_course_id: '',
             price_cash: '', price_card_10x: '', price_installments_3x: '',
-            is_immediate_start: false
+            is_immediate_start: false,
+            instructor_payment_type: 'fixed',
+            instructor_payment_value: 0,
+            create_lms_integration: false
         })
         setIsEditing(false)
         setEditingId(null)
