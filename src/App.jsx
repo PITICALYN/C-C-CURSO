@@ -38,8 +38,32 @@ const SiteLayout = () => {
 }
 
 const PrivateRoute = ({ children }) => {
-  const { session } = useAuth()
+  const { session, userProfile, loading } = useAuth()
+  
+  if (loading) return <div className="p-8 text-center">Carregando perfil...</div>
   if (!session) return <Navigate to="/login" replace />
+  
+  if (userProfile?.requires_password_change && window.location.pathname !== '/trocar-senha') {
+    return <Navigate to="/trocar-senha" replace />
+  }
+
+  return children
+}
+
+const RoleGuard = ({ children, allowedRoles }) => {
+  const { userProfile, loading } = useAuth()
+  
+  if (loading) return null
+  
+  if (userProfile && !allowedRoles.includes(userProfile.role)) {
+    // If it's a student trying to access admin pages, redirect to student portal
+    if (userProfile.role === 'aluno') {
+      return <Navigate to="/meus-cursos" replace />
+    }
+    // If it's an admin trying to access student pages, redirect to dashboard
+    return <Navigate to="/dashboard" replace />
+  }
+
   return children
 }
 
@@ -74,18 +98,21 @@ function App() {
                 <Layout />
               </PrivateRoute>
             }>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/alunos" element={<Alunos />} />
-              <Route path="/turmas" element={<Turmas />} />
-              <Route path="/financeiro" element={<Financeiro />} />
-              <Route path="/professor" element={<Professor />} />
-              <Route path="/auditoria" element={<Auditoria />} />
-              <Route path="/equipe" element={<Equipe />} />
-              <Route path="/lms" element={<LMSAdmin />} />
-              <Route path="/meus-cursos" element={<AreaAluno />} />
-              <Route path="/curso/:courseId/aula/:lessonId" element={<LessonPlayer />} />
-              <Route path="/exame/:quizId" element={<ExamView />} />
-              <Route path="/config" element={<ConfigDocs />} />
+              {/* ADMIN ONLY ROUTES */}
+              <Route path="/dashboard" element={<RoleGuard allowedRoles={['admin', 'coordenador', 'atendente']}><Dashboard /></RoleGuard>} />
+              <Route path="/alunos" element={<RoleGuard allowedRoles={['admin', 'coordenador', 'atendente']}><Alunos /></RoleGuard>} />
+              <Route path="/turmas" element={<RoleGuard allowedRoles={['admin', 'coordenador', 'atendente']}><Turmas /></RoleGuard>} />
+              <Route path="/financeiro" element={<RoleGuard allowedRoles={['admin', 'coordenador']}><Financeiro /></RoleGuard>} />
+              <Route path="/professor" element={<RoleGuard allowedRoles={['admin', 'coordenador', 'instrutor']}><Professor /></RoleGuard>} />
+              <Route path="/auditoria" element={<RoleGuard allowedRoles={['admin', 'coordenador']}><Auditoria /></RoleGuard>} />
+              <Route path="/equipe" element={<RoleGuard allowedRoles={['admin']}><Equipe /></RoleGuard>} />
+              <Route path="/lms" element={<RoleGuard allowedRoles={['admin', 'coordenador']}><LMSAdmin /></RoleGuard>} />
+              <Route path="/config" element={<RoleGuard allowedRoles={['admin']}><ConfigDocs /></RoleGuard>} />
+
+              {/* STUDENT ROUTES */}
+              <Route path="/meus-cursos" element={<RoleGuard allowedRoles={['aluno', 'admin']}><AreaAluno /></RoleGuard>} />
+              <Route path="/curso/:courseId/aula/:lessonId" element={<RoleGuard allowedRoles={['aluno', 'admin']}><LessonPlayer /></RoleGuard>} />
+              <Route path="/exame/:quizId" element={<RoleGuard allowedRoles={['aluno', 'admin']}><ExamView /></RoleGuard>} />
             </Route>
 
             {/* Catch-all route to redirect unknown to dashboard if logged in, or home if not */}

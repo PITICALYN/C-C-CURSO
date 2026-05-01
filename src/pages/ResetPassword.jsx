@@ -27,13 +27,18 @@ export default function ResetPassword() {
             })
             if (authError) throw authError
 
-            // 2. Marcar que não precisa mais trocar senha no public.users
-            const { error: dbError } = await supabase
+            // 2. Marcar que não precisa mais trocar senha
+            await supabase
                 .from('users')
                 .update({ must_change_password: false })
                 .eq('id', session.user.id)
+
+            const { error: dbError } = await supabase
+                .from('students')
+                .update({ requires_password_change: false })
+                .eq('user_id', session.user.id)
             
-            if (dbError) throw dbError
+            if (dbError && dbError.code !== 'PGRST116') console.error("Erro ao atualizar aluno:", dbError)
 
             alert('Senha atualizada com sucesso! Bem-vindo ao portal.')
             navigate('/')

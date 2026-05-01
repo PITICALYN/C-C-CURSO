@@ -128,6 +128,14 @@ const Footer = () => {
               </li>
             ))}
           </ul>
+
+          <div className="footer-col-header" style={{ marginTop: '2rem' }}>
+            <h4>Acesso Restrito</h4>
+          </div>
+          <ul className="admin-links">
+            <li><Link to="/login"><span className="admin-dot"></span> Diretoria e Financeiro</Link></li>
+            <li><Link to="/login"><span className="admin-dot"></span> Edição do Site (Admin)</Link></li>
+          </ul>
         </div>
 
         {/* Newsletter + Mapa */}
@@ -198,6 +206,10 @@ const Footer = () => {
         .footer ul li { margin-bottom: 0.6rem; }
         .footer ul li a { color: var(--text-muted); font-size: 0.9rem; transition: color 0.2s; }
         .footer ul li a:hover { color: var(--primary); }
+
+        .admin-links li a { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s; }
+        .admin-links li a:hover { color: var(--primary); }
+        .admin-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; display: inline-block; }
 
         /* Editable link items */
         .editable-link-item { margin-bottom: 0.75rem; }

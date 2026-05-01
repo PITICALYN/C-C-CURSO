@@ -230,27 +230,36 @@ export default function Alunos() {
             result = await supabase.from('students').update(studentPayload).eq('id', isEditing)
         } else {
             result = await supabase.from('students').insert([studentPayload]).select().single()
-            
-            // Automação de Login: Criar conta no Auth e na tabela de usuários
+            // Automação de Login: Criar conta via Edge Function para não deslogar o Admin
             if (!result.error && result.data && formData.email) {
-                const cleanCPF = formData.cpf.replace(/\D/g, '')
-                const { data: authData, error: authError } = await supabase.auth.signUp({
-                    email: formData.email,
-                    password: cleanCPF,
-                })
-
-                if (!authError && authData?.user) {
-                    await supabase.from('users').insert([{
-                        id: authData.user.id,
-                        email: formData.email,
-                        full_name: formData.full_name,
-                        role: 'student',
-                        must_change_password: true,
-                        is_active: true
-                    }])
+                try {
+                    const { data: { session } } = await supabase.auth.getSession()
                     
-                    // Vincular user_id ao registro do aluno para rastreio
-                    await supabase.from('students').update({ user_id: authData.user.id }).eq('id', result.data.id)
+                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-create-user`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                            email: formData.email,
+                            name: formData.full_name,
+                            cpf: formData.cpf,
+                            phone: formData.phone
+                        })
+                    })
+                    
+                    if (response.ok) {
+                        const authData = await response.json()
+                        // Vincular user_id ao registro do aluno
+                        await supabase.from('students').update({ user_id: authData.userId }).eq('id', result.data.id)
+                    } else {
+                        const errorData = await response.json()
+                        console.error("Erro ao criar login no Auth:", errorData)
+                        alert("O aluno foi matriculado, mas houve um erro ao criar o login: " + (errorData.error || response.statusText))
+                    }
+                } catch (err) {
+                    console.error("Erro de rede ao chamar função:", err)
                 }
             }
         }
@@ -348,15 +357,31 @@ export default function Alunos() {
 
         if (!userId) return alert('Este aluno ainda não possui uma conta vinculada.')
 
-        const { error } = await supabase.rpc('reset_student_password', { 
-            target_user_id: userId, 
-            new_password: cleanCPF 
-        })
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-create-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({
+                    action: 'reset',
+                    userId: userId,
+                    cpf: cleanCPF
+                })
+            })
 
-        if (error) {
-            alert('Erro ao resetar senha: ' + error.message + '\n\nCertifique-se de que a função SQL foi criada no Supabase.')
-        } else {
-            alert('Senha resetada com sucesso para o CPF do aluno!')
+            if (response.ok) {
+                alert('Senha resetada com sucesso para o CPF do aluno!')
+                fetchStudents() // Refresh list to update any state if needed
+            } else {
+                const errorData = await response.json()
+                alert('Erro ao resetar senha: ' + (errorData.error || response.statusText))
+            }
+        } catch (err) {
+            console.error("Erro na requisição de reset:", err)
+            alert('Erro de rede ao resetar senha.')
         }
     }
 

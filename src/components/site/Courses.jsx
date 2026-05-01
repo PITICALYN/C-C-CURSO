@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { Clock, Monitor, ChevronRight, Plus, Trash2, X, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEdit } from '../../context/EditContext';
@@ -10,6 +11,47 @@ const Courses = () => {
   const { content, isEditing, addItemToList, removeItemFromList } = useEdit();
   const { courses_section } = content;
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [upcomingClasses, setUpcomingClasses] = useState([]);
+
+  useEffect(() => {
+    const fetchUpcomingClasses = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data, error } = await supabase
+          .from('classes')
+          .select('course_name, start_date')
+          .gte('start_date', today)
+          .order('start_date', { ascending: true });
+          
+        if (error) throw error;
+        if (data) {
+          setUpcomingClasses(data);
+        }
+      } catch (err) {
+        console.error("Erro ao buscar próximas turmas:", err);
+      }
+    };
+    fetchUpcomingClasses();
+  }, []);
+
+  const getNextClassDate = (courseTitle) => {
+    if (!courseTitle) return null;
+    const match = courseTitle.match(/\((.*?)\)/);
+    const acronym = match ? match[1] : courseTitle;
+    
+    const upcoming = upcomingClasses.find(c => 
+      (c.course_name && acronym && c.course_name.toLowerCase().includes(acronym.toLowerCase())) ||
+      (courseTitle && c.course_name && courseTitle.toLowerCase().includes(c.course_name.toLowerCase()))
+    );
+    
+    if (upcoming && upcoming.start_date) {
+      const parts = upcoming.start_date.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    return null;
+  };
 
   const handleAddCourse = () => {
     const newCourse = {
@@ -98,6 +140,17 @@ const Courses = () => {
                   <h3 className="card-title">
                     <EditableText path={`courses_section.courses.${index}.title`} initialValue={course.title} tagName="div" />
                   </h3>
+                  
+                  {(() => {
+                    const nextDate = getNextClassDate(course.title);
+                    return nextDate ? (
+                      <div className="upcoming-class-badge">
+                        <span className="pulse-dot"></span>
+                        Próxima Turma: <strong>{nextDate}</strong>
+                      </div>
+                    ) : null;
+                  })()}
+
                   <div className="card-desc">
                     <EditableText path={`courses_section.courses.${index}.description`} initialValue={course.description} tagName="p" />
                   </div>
@@ -248,6 +301,32 @@ const Courses = () => {
         .btn-sm { padding: 0.6rem 1.25rem; font-size: 0.85rem; }
         .btn-text { color: var(--text-muted); font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer; background: transparent; border: none; }
         .btn-text:hover { color: var(--primary); }
+
+        .upcoming-class-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(37, 211, 102, 0.1);
+          color: #1e293b;
+          padding: 0.4rem 0.75rem;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          margin-bottom: 1rem;
+          border: 1px solid rgba(37, 211, 102, 0.3);
+        }
+        .pulse-dot {
+          width: 8px; height: 8px;
+          background: #25D366;
+          border-radius: 50%;
+          display: inline-block;
+          box-shadow: 0 0 0 rgba(37, 211, 102, 0.4);
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+          70% { box-shadow: 0 0 0 6px rgba(37, 211, 102, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+        }
 
         /* Modal Styles */
         .modal-overlay {
