@@ -24,6 +24,7 @@ const Enrollment = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState(null); // Will hold Asaas response
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -223,7 +224,22 @@ const Enrollment = () => {
                   </select>
                 </div>
 
-                <button type="submit" className="btn-site-primary w-full btn-large" disabled={isSubmitting}>
+                <div className="input-group" style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', margin: 0, fontWeight: 'normal' }}>
+                    <input 
+                      type="checkbox" 
+                      required
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      style={{ width: '20px', height: '20px', marginTop: '0.15rem' }}
+                    />
+                    <span style={{ fontSize: '0.85rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>
+                      Li e concordo com o <a href="/termos" target="_blank" style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'underline' }}>Manual do Aluno e Termos de Uso</a>, incluindo as políticas de cancelamento e ressarcimento.
+                    </span>
+                  </label>
+                </div>
+
+                <button type="submit" className="btn-site-primary w-full btn-large" disabled={isSubmitting || !acceptedTerms}>
                   {isSubmitting ? 'Gerando Pagamento...' : 'Gerar Pagamento Seguro'}
                   <Send size={18} />
                 </button>

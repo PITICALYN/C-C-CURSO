@@ -11,6 +11,8 @@ export default function AreaAluno() {
     const [upcomingPractical, setUpcomingPractical] = useState([])
     const [quizResults, setQuizResults] = useState([])
     const [technicalEvals, setTechnicalEvals] = useState([])
+    const [missingDocs, setMissingDocs] = useState(false)
+    const [studentId, setStudentId] = useState(null)
     const [loading, setLoading] = useState(true)
     const { session } = useAuth()
 
@@ -45,18 +47,31 @@ export default function AreaAluno() {
             return
         }
 
-        // 2. Buscar matrículas (students) com esse nome que possuem acesso EAD habilitado
+        // 2. Buscar matrículas (students) pelo user_id
         const { data: enrollments } = await supabase
             .from('students')
             .select(`
+                id,
+                doc_photo_url,
+                doc_id_url,
+                doc_cpf_url,
                 has_lms_access,
                 classes(lms_course_id)
             `)
-            .ilike('full_name', `%${profile.full_name}%`)
-            .eq('has_lms_access', true)
+            .eq('user_id', session.user.id)
 
-        // 3. Extrair IDs de cursos vinculados às turmas que o aluno tem acesso
-        const courseIds = enrollments?.map(e => e.classes?.lms_course_id).filter(Boolean) || []
+        if (enrollments && enrollments.length > 0) {
+            setStudentId(enrollments[0].id)
+            // Check if mandatory documents are missing (ID and CPF)
+            const hasMissingDocs = enrollments.some(e => !e.doc_id_url || !e.doc_cpf_url || !e.doc_photo_url)
+            if (hasMissingDocs) {
+                setMissingDocs(true)
+            }
+        }
+
+        // 3. Extrair IDs de cursos vinculados às turmas que o aluno tem acesso (apenas os que têm EAD)
+        const eadEnrollments = enrollments?.filter(e => e.has_lms_access) || []
+        const courseIds = eadEnrollments.map(e => e.classes?.lms_course_id).filter(Boolean) || []
 
         if (courseIds.length > 0) {
             const { data: courses } = await supabase
@@ -68,11 +83,11 @@ export default function AreaAluno() {
             if (courses) setMyCourses(courses)
         }
 
-        // 4. Buscar turmas presenciais para o calendário (mesma lógica anterior)
+        // 4. Buscar turmas presenciais para o calendário
         const { data: practicalStudents } = await supabase
             .from('students')
             .select('turma_id, classes(name, course_name, start_date)')
-            .ilike('full_name', `%${profile.full_name}%`)
+            .eq('user_id', session.user.id)
         
         if (practicalStudents) {
             const dates = practicalStudents.map(s => s.classes).filter(Boolean)
@@ -105,6 +120,59 @@ export default function AreaAluno() {
     useEffect(() => {
         fetchData()
     }, [session])
+
+    const handleFileUpload = async (e, docType) => {
+        const file = e.target.files[0]
+        if (!file || !studentId) return
+
+        try {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${studentId}_${docType}_${Math.random().toString(36).substring(7)}.${fileExt}`
+            const filePath = `${studentId}/${fileName}`
+
+            const { error: uploadError } = await supabase.storage.from('student_documents').upload(filePath, file)
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage.from('student_documents').getPublicUrl(filePath)
+
+            const { error: updateError } = await supabase.from('students').update({ [`doc_${docType}_url`]: publicUrl }).eq('id', studentId)
+            if (updateError) throw updateError
+
+            alert(`Documento (${docType}) enviado com sucesso!`)
+            fetchData() // Recarrega para verificar se ainda faltam documentos
+        } catch (error) {
+            console.error('Erro no upload:', error)
+            alert('Falha ao enviar arquivo. Tente novamente.')
+        }
+    }
+
+    if (missingDocs) {
+        return (
+            <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '4rem auto', padding: '2rem' }}>
+                <div className="card text-center" style={{ padding: '3rem 2rem', border: '2px solid #FDE68A', backgroundColor: '#FFFBEB' }}>
+                    <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '1rem', color: '#92400E' }}>Falta pouco para acessar suas aulas!</h2>
+                    <p style={{ color: '#B45309', marginBottom: '2rem', fontSize: '1.1rem' }}>
+                        Por exigência da certificação Abendi, precisamos que você faça o upload dos seus documentos básicos antes de liberar o acesso à plataforma.
+                    </p>
+                    
+                    <div style={{ display: 'grid', gap: '1.5rem', textAlign: 'left', maxWidth: '500px', margin: '0 auto' }}>
+                        {['photo', 'id', 'cpf'].map((docType) => {
+                            const labels = { photo: 'Foto 3x4 (Para crachá/certificado)', id: 'Documento de Identidade (RG/CNH)', cpf: 'CPF' }
+                            return (
+                                <div key={docType} style={{ padding: '1.5rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #FCD34D' }}>
+                                    <p style={{ fontWeight: 600, marginBottom: '1rem' }}>{labels[docType]}</p>
+                                    <label className="btn btn-primary" style={{ display: 'block', textAlign: 'center', cursor: 'pointer' }}>
+                                        Selecionar e Enviar Arquivo
+                                        <input type="file" hidden accept=".pdf,image/*" onChange={(e) => handleFileUpload(e, docType)} />
+                                    </label>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="animate-fade-in" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
