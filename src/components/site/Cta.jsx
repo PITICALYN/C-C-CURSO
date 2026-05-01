@@ -31,7 +31,7 @@ const Cta = () => {
             />
           </div>
           <div className="cta-actions">
-            <button className="btn-secondary">
+            <button className="btn-site-primary">
               <EditableText 
                 path="cta_section.buttons.0" 
                 initialValue={cta_section.buttons[0]} 

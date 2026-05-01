@@ -42,7 +42,7 @@ const Hero = () => {
           />
 
           <div className="hero-btns">
-            <button className="btn-primary">
+            <button className="btn-site-primary">
               <EditableText 
                 path="hero.cta" 
                 initialValue={hero.cta} 

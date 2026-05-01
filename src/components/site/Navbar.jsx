@@ -78,7 +78,7 @@ const Navbar = () => {
                 initialValue={navbar.actions.login} 
               />
             </Link>
-            <Link to="/matricula" className="btn-primary btn-nav-cta">
+            <Link to="/matricula" className="btn-site-primary btn-nav-cta">
               <EditableText 
                 path="navbar.actions.cta" 
                 initialValue={navbar.actions.cta} 
@@ -122,7 +122,7 @@ const Navbar = () => {
               <User size={20} />
               {navbar.actions.login}
             </Link>
-            <Link to="/matricula" className="btn-primary drawer-cta" onClick={toggleMenu}>
+            <Link to="/matricula" className="btn-site-primary drawer-cta" onClick={toggleMenu}>
               {navbar.actions.cta}
             </Link>
           </div>
