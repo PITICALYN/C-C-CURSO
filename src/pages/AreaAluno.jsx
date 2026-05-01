@@ -62,8 +62,11 @@ export default function AreaAluno() {
 
         if (enrollments && enrollments.length > 0) {
             setStudentId(enrollments[0].id)
-            // Check if mandatory documents are missing (ID and CPF)
-            const hasMissingDocs = enrollments.some(e => !e.doc_id_url || !e.doc_cpf_url || !e.doc_photo_url)
+            // Check if mandatory documents are missing
+            const hasMissingDocs = enrollments.some(e => 
+                !e.doc_id_url || !e.doc_cpf_url || !e.doc_photo_url || 
+                !e.doc_address_url || !e.doc_education_url
+            )
             if (hasMissingDocs) {
                 setMissingDocs(true)
             }
@@ -156,14 +159,29 @@ export default function AreaAluno() {
                     </p>
                     
                     <div style={{ display: 'grid', gap: '1.5rem', textAlign: 'left', maxWidth: '500px', margin: '0 auto' }}>
-                        {['photo', 'id', 'cpf'].map((docType) => {
-                            const labels = { photo: 'Foto 3x4 (Para crachá/certificado)', id: 'Documento de Identidade (RG/CNH)', cpf: 'CPF' }
+                        {['photo', 'id', 'cpf', 'address', 'education'].map((docType) => {
+                            const labels = { 
+                                photo: 'Foto de Rosto (Você pode tirar uma selfie agora)', 
+                                id: 'Documento de Identidade (RG/CNH)', 
+                                cpf: 'CPF',
+                                address: 'Comprovante de Residência atualizado',
+                                education: 'Comprovante de Escolaridade (Diploma/Histórico)'
+                            }
+                            
+                            const isPhoto = docType === 'photo'
+
                             return (
                                 <div key={docType} style={{ padding: '1.5rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #FCD34D' }}>
                                     <p style={{ fontWeight: 600, marginBottom: '1rem' }}>{labels[docType]}</p>
                                     <label className="btn btn-primary" style={{ display: 'block', textAlign: 'center', cursor: 'pointer' }}>
-                                        Selecionar e Enviar Arquivo
-                                        <input type="file" hidden accept=".pdf,image/*" onChange={(e) => handleFileUpload(e, docType)} />
+                                        {isPhoto ? 'Tirar Selfie / Enviar Foto' : 'Selecionar e Enviar Arquivo'}
+                                        <input 
+                                            type="file" 
+                                            hidden 
+                                            accept={isPhoto ? "image/*" : ".pdf,image/*"} 
+                                            capture={isPhoto ? "user" : undefined}
+                                            onChange={(e) => handleFileUpload(e, docType)} 
+                                        />
                                     </label>
                                 </div>
                             )
