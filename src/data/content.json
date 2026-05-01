@@ -1,0 +1,152 @@
+{
+  "navbar": {
+    "logo": "CEC",
+    "sublogo": "Engenharia",
+    "logo_img": "logo_oficial.png",
+    "links": ["Home", "Cursos", "Sobre Nós", "Contato"],
+    "social": {
+      "instagram": "https://www.instagram.com/cec_engenharia_capacitacao/",
+      "linkedin": "https://linkedin.com/company/cec-engenharia"
+    },
+    "actions": {
+      "login": "Acesso Aluno",
+      "cta": "Matricule-se"
+    }
+  },
+  "hero": {
+    "badge": "CAPACITAÇÃO TÉCNICA",
+    "title": "Domine o Controle\nDimensional da Indústria.",
+    "description": "Formação técnica especializada para o setor de Controle Dimensional, Qualidade visando prepará-los para as provas de certificação Abendi.",
+    "cta": "Ver Cursos Disponíveis",
+    "image": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop",
+    "cert_badge": "logo_abendi_new.png",
+    "features": ["Certificação Reconhecida", "Infraestrutura Completa"],
+    "cert_card": {
+      "title": "CERTIFICAÇÃO RECONHECIDA",
+      "text": "Diplomas válidos em todo território nacional."
+    }
+  },
+  "about_page": {
+    "title": "Quem Somos",
+    "content": "A C&C Engenharia e Capacitação foi fundada com o propósito de preencher uma lacuna crítica no mercado de qualificação e capacitação industrial, especialmente nas áreas de caldeiraria e tubulação. Desde sua fundação, a empresa tem se dedicado a oferecer treinamentos de alta qualidade, reconhecidos por sua excelência técnica e alinhados às necessidades reais da indústria.",
+    "mission": {
+      "title": "Missão",
+      "text": "Nossa missão é capacitar profissionais com o conhecimento e as habilidades necessárias para desempenhar suas funções com precisão e segurança, contribuindo para o sucesso de projetos industriais em todo o Brasil."
+    },
+    "vision": {
+      "title": "Visão",
+      "text": "Ser referência nacional em treinamento e qualificação industrial, reconhecida pela Abendi e por nossos parceiros, como uma empresa que promove a excelência técnica e a inovação no setor."
+    },
+    "values": {
+      "title": "Valores",
+      "list": [
+        { "title": "Compromisso com a Qualidade", "text": "Garantimos que todos os nossos cursos atendam aos os mais altos padrões de ensino e prática industrial." },
+        { "title": "Ética e Integridade", "text": "Agimos com transparência e respeito em todas as nossas relações, tanto com nossos clientes quanto com nossos colaboradores." },
+        { "title": "Inovação Contínua", "text": "Buscamos constantemente novas metodologias e tecnologias para aprimorar nossos treinamentos e oferecer as melhores soluções aos nossos alunos." },
+        { "title": "Foco no Aluno", "text": "O sucesso dos nossos alunos é o nosso principal objetivo. Estamos comprometidos em oferecer um ambiente de aprendizado que estimule o desenvolvimento profissional e pessoal." }
+      ]
+    },
+    "quote": "Deixe o conhecimento libertar você!"
+  },
+  "terms_page": {
+    "title": "Termos de Uso",
+    "content": "C&C Engenharia e Capacitação, pessoa jurídica de direito privado descreve, através deste documento, as regras de uso do site https://cecengenhariaecapacitacao.com.br e qualquer outro site, loja ou aplicativo operado pelo proprietário.\n\nAo navegar neste website, consideramos que você está de acordo com os Termos de Uso abaixo.\n\nCaso você não esteja de acordo com as condições deste contrato, pedimos que não faça mais uso deste website, muito menos cadastre-se ou envie os seus dados pessoais."
+  },
+  "privacy_page": {
+    "title": "Política de Privacidade",
+    "content": "A C&C Engenharia e Capacitação, pessoa jurídica de direito privado, leva a sua privacidade a sério e zela pela segurança e proteção de dados de todos os seus clientes, parceiros, fornecedores e usuários."
+  },
+  "contact_page": {
+    "title": "Fale Conosco",
+    "subtitle": "Estamos prontos para tirar suas dúvidas e ajudar na sua carreira.",
+    "whatsapp_direct": "+5521965554180",
+    "address": "Av. Brasil, Rio de Janeiro, RJ, Brasil"
+  },
+  "complaint_page": {
+    "title": "Canal de Ouvidoria",
+    "subtitle": "Sua voz é importante para nossa evolução. Reclamações são tratadas diretamente pela diretoria.",
+    "whatsapp_admin": "+5521965554180"
+  },
+  "courses_section": {
+    "title": "Nossas Formações",
+    "subtitle": "Programas intensivos desenhados para suprir a demanda de profissionais qualificados em inspeção e medição industrial.",
+    "courses": [
+      {
+        "id": 1,
+        "title": "Inspetor Dimensional de Caldeiraria e Tubulação (CD-CL)",
+        "description": "Capacitação completa para profissionais de controle de qualidade, focada em normas técnicas e medições de precisão em estruturas metálicas.",
+        "duration": "100 Horas",
+        "type": "Presencial + Híbrido",
+        "category": "MAIS PROCURADO",
+        "image": "https://images.unsplash.com/photo-1542435503-956c469947f6?q=80&w=2000&auto=format&fit=crop"
+      },
+      {
+        "id": 2,
+        "title": "Estação Total Aplicado a Caldeiraria",
+        "description": "Treinamento avançado em medições tridimensionais e locação industrial utilizando equipamentos de topografia de alta precisão.",
+        "duration": "80 Horas",
+        "type": "Equipamento Incluso",
+        "category": "ESPECIALIZAÇÃO",
+        "image": "https://images.unsplash.com/photo-1504917595217-d4dc5f566f63?q=80&w=2000&auto=format&fit=crop"
+      },
+      {
+        "id": 3,
+        "title": "Controle Dimensional - CD-CM",
+        "description": "Especialização em controle dimensional com foco em Máquinas de Medir por Coordenadas (MMC), garantindo precisão milimétrica.",
+        "duration": "60 Horas",
+        "type": "Tecnologia MMC",
+        "category": "ESPECIALIZAÇÃO",
+        "image": "https://images.unsplash.com/photo-1534398079543-7ae6d016b86a?q=80&w=2000&auto=format&fit=crop"
+      },
+      {
+        "id": 4,
+        "title": "Controle Dimensional - CD-TO",
+        "description": "Domine técnicas de alinhamento e nivelamento industrial utilizando Teodolito e Optical Tooling para grandes montagens.",
+        "duration": "90 Horas",
+        "type": "Alinhamento Óptico",
+        "category": "ESPECIALIZAÇÃO",
+        "image": "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2000&auto=format&fit=crop"
+      }
+    ]
+  },
+  "stats": {
+    "grid": [
+      {"label": "ANOS DE MERCADO", "value": "6+"},
+      {"label": "DOS INSPETORES DE TODO O BRASIL TREINARAM NA CEC", "value": "60%+"},
+      {"label": "APROVAÇÃO NOS EXAMES PRÁTICOS DA ABENDI", "value": "97%"},
+      {"label": "FOCADO NAS PROVAS DA ABENDI", "value": "100%"}
+    ],
+    "title": "Excelência Técnica que Abre Portas",
+    "description": "Na CEC Engenharia, não entregamos apenas certificados. Preparamos o profissional para os desafios reais do canteiro de obras e da indústria pesada.",
+    "benefits": [
+      "Instrutores Experientes: Atuantes nos maiores projetos petrolíferos, nucleares, industriais do país.",
+      "Material Didático Exclusivo: Conteúdo atualizado com as últimas normas ABNT e internacionais."
+    ]
+  },
+  "cta_section": {
+    "title": "Pronto para elevar sua carreira técnica?",
+    "text": "Inscreva-se hoje e garanta sua vaga na próxima turma. Condições especiais para grupos e empresas.",
+    "buttons": ["Quero me Matricular", "Falar com Consultor"]
+  },
+  "footer": {
+    "brand_desc": "Referência em capacitação técnica e soluções de engenharia para o setor industrial.",
+    "links_rapidos": [
+      { "label": "Início", "url": "/" },
+      { "label": "Treinamentos", "url": "/cursos" },
+      { "label": "Sobre Nós", "url": "/sobre-nos" },
+      { "label": "Fale Conosco", "url": "/contato" }
+    ],
+    "links_institucional": [
+      { "label": "Termos de Uso", "url": "/termos" },
+      { "label": "Política de Privacidade", "url": "/privacidade" },
+      { "label": "Canal de Ouvidoria", "url": "/ouvidoria" }
+    ],
+    "newsletter": {
+      "title": "Newsletter",
+      "text": "Receba novidades sobre novos treinamentos e cursos."
+    },
+    "copyright": "© 2026 CEC Engenharia e Capacitação. Todos os direitos reservados.",
+    "cnpj": "CNPJ: 00.000.000/0001-00",
+    "address": "Rio de Janeiro, RJ"
+  }
+}
