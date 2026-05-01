@@ -73,8 +73,8 @@
     "courses": [
       {
         "id": 1,
-        "title": "Inspetor Dimensional de Caldeiraria e Tubulação (CD-CL)",
-        "description": "Capacitação completa para profissionais de controle de qualidade, focada em normas técnicas e medições de precisão em estruturas metálicas.",
+        "title": "Inspetor Dimensional Caldeiraria e Tubulação (CD-CL)",
+        "description": "Formação de elite para profissionais que buscam o domínio no controle de qualidade. Nosso programa é estruturado para garantir precisão absoluta e conformidade rigorosa. Visando o controle dimensional de montagens de Vasos de Pressão, Tubulações, estruturas e equipamentos.",
         "duration": "100 Horas",
         "type": "Presencial + Híbrido",
         "category": "MAIS PROCURADO",
@@ -91,8 +91,8 @@
       },
       {
         "id": 3,
-        "title": "Controle Dimensional - CD-CM",
-        "description": "Especialização em controle dimensional com foco em Máquinas de Medir por Coordenadas (MMC), garantindo precisão milimétrica.",
+        "title": "Inspetor Dimensional de Mecânica (CD-MC)",
+        "description": "Formação de elite projetada para formar especialistas em controle Dimensional de peças com alta precisão, principalmente os usinados. Foco na integridade de componentes mecânicos e conjuntos rotativos.",
         "duration": "60 Horas",
         "type": "Tecnologia MMC",
         "category": "ESPECIALIZAÇÃO",
@@ -100,8 +100,8 @@
       },
       {
         "id": 4,
-        "title": "Controle Dimensional - CD-TO",
-        "description": "Domine técnicas de alinhamento e nivelamento industrial utilizando Teodolito e Optical Tooling para grandes montagens.",
+        "title": "Inspetor Dimensional de Topografia (CD-TO)",
+        "description": "Formação de elite que capacita o profissional para atuar na interface entre a engenharia civil e a mecânica, garantindo que grandes estruturas sejam montadas exatamente onde o projeto prevê.",
         "duration": "90 Horas",
         "type": "Alinhamento Óptico",
         "category": "ESPECIALIZAÇÃO",
